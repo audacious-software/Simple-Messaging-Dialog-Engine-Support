@@ -27,8 +27,8 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
-    'quicksilver'
-    'simple_messaging'
+    'quicksilver',
+    'simple_messaging',
     'simple_messaging_dialog_support'
 )
 
