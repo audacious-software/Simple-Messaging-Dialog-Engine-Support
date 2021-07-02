@@ -29,7 +29,8 @@ INSTALLED_APPS = (
     'django.contrib.gis',
     'quicksilver',
     'simple_messaging',
-    'simple_messaging_dialog_support'
+    'django_dialog_engine',
+    'simple_messaging_dialog_support',
 )
 
 MIDDLEWARE = (
