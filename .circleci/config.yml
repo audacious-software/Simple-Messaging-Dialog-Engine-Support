@@ -40,13 +40,15 @@ jobs:
             mv ../simple_messaging_dialog_support smds
             cd smds
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
-            git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
+            git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
+            git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
             python manage.py migrate
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
             pylint quicksilver
+            pylint django_dialog_engine
             pylint simple_messaging
             pylint simple_messaging_dialog_support
             bandit -r .      
@@ -90,6 +92,7 @@ jobs:
             mv ../simple_messaging_dialog_support smds
             cd smds
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
+            git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
@@ -97,6 +100,7 @@ jobs:
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
             pylint quicksilver
+            pylint django_dialog_engine
             pylint simple_messaging
             pylint simple_messaging_dialog_support
             bandit -r .      
