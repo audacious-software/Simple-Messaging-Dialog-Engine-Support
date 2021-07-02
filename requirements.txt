@@ -1,0 +1,9 @@
+bandit==1.6.2
+Django==1.11.29; python_version < '3.0'
+Django==3.2.4; python_version >= '3.0'
+lockfile==0.12.2
+phonenumbers==8.12.6
+psycopg2-binary==2.8.6
+pylint==2.6.0; python_version >= '3.0'
+pylint==1.9.5; python_version < '3.0'
+twilio==6.42.0
