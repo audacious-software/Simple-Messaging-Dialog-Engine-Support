@@ -9,4 +9,5 @@ phonenumbers==8.12.6
 psycopg2-binary==2.8.6
 pylint==2.6.0; python_version >= '3.0'
 pylint==1.9.5; python_version < '3.0'
+PyNaCl==1.4.0
 twilio==6.42.0

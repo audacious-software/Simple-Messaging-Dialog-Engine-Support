@@ -5,4 +5,5 @@ from .models import DialogVariable
 
 
 def store_value(sender, dialog_key, key, value):
-    DialogVariable.objects.create(sender=sender, dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
+    variable = DialogVariable.objects.create(sender=sender, dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
+    variable.encrypt_sender()
