@@ -7,10 +7,8 @@ from django_dialog_engine.models import Dialog, DialogScript
 from .models import DialogSession
 
 def process_outgoing_message(outgoing_message):
-    message_text = outgoing_message.fetch_message(None)
-
-    if message_text.startswith('dialog:'):
-        identifier = message_text.replace('dialog:', '')
+    if outgoing_message.message.startswith('dialog:'):
+        identifier = outgoing_message.message.replace('dialog:', '')
 
         script = DialogScript.objects.filter(identifier=identifier).first()
 
