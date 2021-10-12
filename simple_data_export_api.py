@@ -68,9 +68,7 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
             if len(dialog_variables) == 0: # pylint: disable=len-as-condition
                 for variable in DialogVariable.objects.all().order_by('date_set'):
                     if (variable.key in dialog_variables) is False:
-                        dialog_variables[variable.key] = []
-
-                    dialog_variables[variable.key].append(variable.value)
+                        dialog_variables.append(variable.key)
 
             variables.extend(dialog_variables)
 
@@ -93,7 +91,10 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
 
                     for variable in DialogVariable.objects.filter(date_set__gte=session.started, date_set__lte=session.finished).order_by('date_set'):
                         if variable.current_sender() == destination:
-                            session_variables[variable.key] = variable.value
+                            if (variable.key in session_variables) is False:
+                                session_variables[variable.key] = []
+
+                            session_variables[variable.key].append(variable.value)
 
                     row = []
 
