@@ -42,8 +42,10 @@ jobs:
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
             git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
+            git clone https://github.com/audacious-software/Simple-Data-Export-Django.git simple_data_export
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
+            mkdir -p media/simple_data_export_uploads
             python manage.py migrate
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
@@ -94,8 +96,10 @@ jobs:
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
             git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
+            git clone https://github.com/audacious-software/Simple-Data-Export-Django.git simple_data_export
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
+            mkdir -p media/simple_data_export_uploads
             python manage.py migrate
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
