@@ -65,7 +65,7 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
                 except AttributeError:
                     pass
 
-            if len(dialog_variables) == 0:
+            if len(dialog_variables) == 0: # pylint: disable=len-as-condition
                 for variable in DialogVariable.objects.all().order_by('date_set'):
                     if (variable.key in dialog_variables) is False:
                         dialog_variables[variable.key] = []
