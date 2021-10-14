@@ -12,7 +12,7 @@ from django.db import models
 from django.utils import timezone
 
 from django_dialog_engine.models import Dialog
-from simple_messaging.models import OutgoingMessage
+from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
 class DialogSession(models.Model):
     destination = models.CharField(max_length=256)
@@ -41,7 +41,8 @@ class DialogSession(models.Model):
                         # Do nothing - input will come in via HTTP views...
                         pass
                     elif action['type'] == 'echo':
-                        OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=action['message'])
+                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=action['message'])
+                        message.encrypt_destination()
                     elif action['type'] == 'pause':
                         # Do nothing - pause will conclude in a subsequent call
                         pass
@@ -50,7 +51,7 @@ class DialogSession(models.Model):
                             try:
                                 app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-                                app_dialog_api.store_value(self.destination, self.dialog.key, action['key'], action['value'])
+                                app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], action['value'])
                             except ImportError:
                                 pass
                             except AttributeError:
@@ -69,6 +70,29 @@ class DialogSession(models.Model):
 
         call_command('simple_messaging_send_pending_messages')
 
+    def current_destination(self):
+        if self.destination is not None and self.destination.startswith('secret:'):
+            return decrypt_value(self.destination)
+
+        return self.destination
+
+    def update_destination(self, new_destination, force=False):
+        if force is False and new_destination == self.current_destination():
+            return # Same as current - don't add
+
+        if hasattr(settings, 'SIMPLE_MESSAGING_SECRET_KEY'):
+            encrypted_dest = encrypt_value(new_destination)
+
+            self.destination = encrypted_dest
+        else:
+            self.destination = new_destination
+
+        self.save()
+
+    def encrypt_destination(self):
+        if self.destination.startswith('secret:') is False:
+            self.update_destination(self.destination, force=True)
+
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
     dialog_key = models.CharField(max_length=256, null=True, blank=True)
@@ -83,3 +107,26 @@ class DialogVariable(models.Model):
             return self.value[:64] + '...' # pylint: disable=unsubscriptable-object
 
         return self.value
+
+    def current_sender(self):
+        if self.sender is not None and self.sender.startswith('secret:'):
+            return decrypt_value(self.sender)
+
+        return self.sender
+
+    def update_sender(self, new_sender, force=False):
+        if force is False and new_sender == self.current_sender():
+            return # Same as current - don't add
+
+        if hasattr(settings, 'SIMPLE_MESSAGING_SECRET_KEY'):
+            encrypted_sender = encrypt_value(new_sender)
+
+            self.sender = encrypted_sender
+        else:
+            self.sender = new_sender
+
+        self.save()
+
+    def encrypt_sender(self):
+        if self.sender.startswith('secret:') is False:
+            self.update_sender(self.sender, force=True)

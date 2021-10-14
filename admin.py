@@ -1,17 +1,26 @@
+# pylint: disable=line-too-long
+
 from django.contrib import admin
 
-# Register your models here.
+from django.conf import settings
 
 from .models import DialogSession, DialogVariable
 
 @admin.register(DialogSession)
 class DialogSessionAdmin(admin.ModelAdmin):
-    list_display = ('destination', 'dialog', 'started', 'last_updated', 'finished')
-    search_fields = ('destination',)
+    if hasattr(settings, 'SIMPLE_MESSAGING_SHOW_ENCRYPTED_VALUES') and settings.SIMPLE_MESSAGING_SHOW_ENCRYPTED_VALUES:
+        list_display = ('current_destination', 'dialog', 'started', 'last_updated', 'finished')
+    else:
+        list_display = ('destination', 'dialog', 'started', 'last_updated', 'finished')
+
     list_filter = ('started', 'last_updated', 'finished',)
 
 @admin.register(DialogVariable)
 class DialogVariableAdmin(admin.ModelAdmin):
-    list_display = ('sender', 'dialog_key', 'date_set', 'key', 'value_truncated',)
-    search_fields = ('sender', 'dialog_key', 'key', 'value',)
-    list_filter = ('date_set', 'dialog_key', 'key', 'sender')
+    if hasattr(settings, 'SIMPLE_MESSAGING_SHOW_ENCRYPTED_VALUES') and settings.SIMPLE_MESSAGING_SHOW_ENCRYPTED_VALUES:
+        list_display = ('current_sender', 'dialog_key', 'date_set', 'key', 'value_truncated',)
+    else:
+        list_display = ('sender', 'dialog_key', 'date_set', 'key', 'value_truncated',)
+
+    search_fields = ('dialog_key', 'key', 'value',)
+    list_filter = ('date_set', 'dialog_key', 'key',)
