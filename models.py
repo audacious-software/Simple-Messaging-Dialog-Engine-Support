@@ -9,6 +9,7 @@ import json
 from django.conf import settings
 from django.core.management import call_command
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from django_dialog_engine.models import Dialog
@@ -29,6 +30,11 @@ class DialogSession(models.Model):
             message = response
         elif response is not None:
             message = response.message
+
+        if extras is None:
+            extras = {}
+
+        extras.update(self.fetch_latest_variables())
 
         actions = self.dialog.process(message, extras)
 
@@ -92,6 +98,22 @@ class DialogSession(models.Model):
     def encrypt_destination(self):
         if self.destination.startswith('secret:') is False:
             self.update_destination(self.destination, force=True)
+
+    def fetch_latest_variables(self):
+        query = Q(dialog_key=self.dialog.key) & Q(date_set__gte=self.started)
+
+        variables = {}
+
+        if self.finished is not None:
+            query = query & Q(date_set__lte=self.finished)
+
+        current_dest = self.current_destination()
+
+        for variable in DialogVariable.objects.filter(query).order_by('date_set'):
+            if variable.current_sender() == current_dest:
+                variables[variable.key] = variable.value
+
+        return variables
 
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
