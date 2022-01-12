@@ -10,7 +10,7 @@ import pytz
 
 from django.conf import settings
 
-from simple_data_export.utils import fetch_export_identifier
+from simple_data_export.utils import fetch_export_identifier # pylint: disable=import-error
 
 from .models import DialogSession, DialogVariable
 
