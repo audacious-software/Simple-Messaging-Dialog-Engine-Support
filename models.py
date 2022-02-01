@@ -3,8 +3,11 @@
 
 from __future__ import unicode_literals, print_function
 
+from builtins import str
+
 import importlib
 import json
+import traceback
 
 from django.conf import settings
 from django.core.management import call_command
@@ -25,14 +28,17 @@ class DialogSession(models.Model):
 
     def process_response(self, response, extras=None): # pylint: disable=too-many-branches
         message = None
+        
+        try:
+            if isinstance(response, str):
+                message = response
+            elif response is not None:
+                message = response.message
 
-        if isinstance(response, str):
-            message = response
-        elif response is not None:
-            message = response.message
-
-        if extras is None:
-            extras = {}
+            if extras is None:
+                extras = {}
+        except:
+            traceback.print_exc()
 
         extras.update(self.fetch_latest_variables())
 
@@ -64,6 +70,9 @@ class DialogSession(models.Model):
                                 pass
                     elif action['type'] == 'external-choice':
                         pass # Do nothing - waiting for external choice to be made...
+
+                    elif action['type'] == 'alert':
+                        print('ALERT(TODO): %s' % json.dumps(action, indent=2))
                     else:
                         raise Exception('Unknown action: ' + json.dumps(action))
                 else:
