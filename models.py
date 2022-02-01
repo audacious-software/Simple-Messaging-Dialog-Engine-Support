@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals, print_function
 
-from builtins import str
+from builtins import str # pylint: disable=redefined-builtin
 
 import importlib
 import json
@@ -28,7 +28,7 @@ class DialogSession(models.Model):
 
     def process_response(self, response, extras=None): # pylint: disable=too-many-branches
         message = None
-        
+
         try:
             if isinstance(response, str):
                 message = response
@@ -37,7 +37,7 @@ class DialogSession(models.Model):
 
             if extras is None:
                 extras = {}
-        except:
+        except: # pylint: disable=bare-except
             traceback.print_exc()
 
         extras.update(self.fetch_latest_variables())
