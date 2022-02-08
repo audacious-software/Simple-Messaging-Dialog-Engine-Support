@@ -23,7 +23,7 @@ class DialogSession(models.Model):
     last_updated = models.DateTimeField()
     finished = models.DateTimeField(null=True, blank=True)
 
-    def process_response(self, response, extras=None): # pylint: disable=too-many-branches
+    def process_response(self, response, extras=None): # pylint: disable=too-many-branches, too-many-statements
         message = None
 
         if isinstance(response, str):
@@ -34,9 +34,32 @@ class DialogSession(models.Model):
         if extras is None:
             extras = {}
 
+        for app in settings.INSTALLED_APPS:
+            try:
+                app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                dest_variables = app_dialog_api.fetch_destination_variables(self.current_destination())
+
+                if dest_variables is not None:
+                    extras.update(dest_variables)
+            except ImportError:
+                pass
+            except AttributeError:
+                pass
+
         extras.update(self.fetch_latest_variables())
 
         actions = self.dialog.process(message, extras)
+
+        for app in settings.INSTALLED_APPS:
+            try:
+                app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                app_dialog_api.update_destination_variables(self.current_destination(), extras)
+            except ImportError:
+                pass
+            except AttributeError:
+                pass
 
         if actions is not None: # pylint: disable=too-many-nested-blocks
             self.last_updated = timezone.now()
