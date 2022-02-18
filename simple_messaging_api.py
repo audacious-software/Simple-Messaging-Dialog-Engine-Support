@@ -42,7 +42,7 @@ def process_outgoing_message(outgoing_message):
 
                         if pause_minutes is not None and node['type'] == 'pause':
                             node['duration'] = pause_minutes * 60
-                except: # pylint: disable=bare-except
+                except json.decoder.JSONDecodeError:
                     pass
 
             dialog = Dialog.objects.create(key=identifier, script=script, dialog_snapshot=script_def, started=timezone.now())
