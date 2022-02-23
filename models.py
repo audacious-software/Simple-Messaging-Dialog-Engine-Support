@@ -97,7 +97,21 @@ class DialogSession(models.Model):
                     elif action['type'] == 'alert':
                         print('ALERT(TODO): %s' % json.dumps(action, indent=2))
                     else:
-                        raise Exception('Unknown action: ' + json.dumps(action))
+                        custom_action_found = False
+
+                        for app in settings.INSTALLED_APPS:
+                            if custom_action_found is False:
+                                try:
+                                    app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                    custom_action_found = app_dialog_api.execute_dialog_action(self.current_destination(), extras, action)
+                                except ImportError:
+                                    pass
+                                except AttributeError:
+                                    pass
+
+                        if custom_action_found is False:
+                            raise Exception('Unknown action: ' + json.dumps(action))
                 else:
                     raise Exception('Unknown action: ' + json.dumps(action))
 
