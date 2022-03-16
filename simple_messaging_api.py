@@ -9,8 +9,10 @@ from django_dialog_engine.models import Dialog, DialogScript
 from .models import DialogSession
 
 def process_outgoing_message(outgoing_message):
-    if outgoing_message.message.startswith('dialog:'): # pylint: disable=too-many-nested-blocks
-        identifier = outgoing_message.message.replace('dialog:', '')
+    message_content = outgoing_message.current_message()
+
+    if message_content.startswith('dialog:'): # pylint: disable=too-many-nested-blocks
+        identifier = message_content.replace('dialog:', '')
 
         script = DialogScript.objects.filter(identifier=identifier).first()
 
