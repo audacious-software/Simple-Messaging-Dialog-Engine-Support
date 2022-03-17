@@ -209,6 +209,6 @@ class DialogVariable(models.Model):
             self.update_sender(self.sender, force=True)
 
 class DialogTemplateVariable(models.Model):
-    script = models.ForeignKey(DialogScript, related_name='template_variables', null=True, blank=True)
+    script = models.ForeignKey(DialogScript, related_name='template_variables', null=True, blank=True, on_delete=models.SET_NULL)
     key = models.CharField(max_length=1024)
     value = models.TextField(max_length=4194304)
