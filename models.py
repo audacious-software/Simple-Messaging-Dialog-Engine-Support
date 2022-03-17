@@ -13,9 +13,10 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import models
 from django.db.models import Q
+from django.template import Template, Context
 from django.utils import timezone
 
-from django_dialog_engine.models import Dialog
+from django_dialog_engine.models import Dialog, DialogScript
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
 class DialogSession(models.Model):
@@ -76,7 +77,15 @@ class DialogSession(models.Model):
                         # Do nothing - input will come in via HTTP views...
                         pass
                     elif action['type'] == 'echo':
-                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=action['message'])
+                        template = Template(action['message'])
+
+                        rendered_message = template.render(Context(self.dialog.metadata))
+
+                        message_metadata = {
+                            'dialog_metadata': self.dialog.metadata
+                        }
+
+                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2))
                         message.encrypt_destination()
                     elif action['type'] == 'pause':
                         # Do nothing - pause will conclude in a subsequent call
@@ -198,3 +207,8 @@ class DialogVariable(models.Model):
     def encrypt_sender(self):
         if self.sender.startswith('secret:') is False:
             self.update_sender(self.sender, force=True)
+
+class DialogTemplateVariable(models.Model):
+    script = models.ForeignKey(DialogScript, related_name='template_variables', null=True, blank=True)
+    key = models.CharField(max_length=1024)
+    value = models.TextField(max_length=4194304)

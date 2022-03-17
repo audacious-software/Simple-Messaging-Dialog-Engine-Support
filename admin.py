@@ -4,7 +4,7 @@ from django.contrib import admin
 
 from django.conf import settings
 
-from .models import DialogSession, DialogVariable
+from .models import DialogSession, DialogVariable, DialogTemplateVariable
 
 @admin.register(DialogSession)
 class DialogSessionAdmin(admin.ModelAdmin):
@@ -24,3 +24,9 @@ class DialogVariableAdmin(admin.ModelAdmin):
 
     search_fields = ('dialog_key', 'key', 'value',)
     list_filter = ('date_set', 'dialog_key', 'key',)
+
+@admin.register(DialogTemplateVariable)
+class DialogTemplateVariableAdmin(admin.ModelAdmin):
+    list_display = ('key', 'value', 'script')
+    search_fields = ('key', 'value',)
+    list_filter = ('script',)
