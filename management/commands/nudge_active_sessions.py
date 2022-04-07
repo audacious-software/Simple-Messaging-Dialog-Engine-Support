@@ -16,5 +16,5 @@ class Command(BaseCommand):
     @handle_lock
     @handle_schedule
     def handle(self, *args, **options):
-        for dialog in DialogSession.objects.filter(finished=None):
-            dialog.process_response(None, None)
+        for session in DialogSession.objects.filter(finished=None):
+            session.process_response(None, None)
