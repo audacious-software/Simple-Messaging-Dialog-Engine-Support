@@ -103,7 +103,7 @@ class DialogSession(models.Model):
                     elif action['type'] == 'external-choice':
                         pass # Do nothing - waiting for external choice to be made...
 
-                    elif action['type'] == 'alert':
+                    elif action['type'] == 'alert' or action['type'] == 'raise-alert':
                         print('ALERT(TODO): %s' % json.dumps(action, indent=2))
                     else:
                         custom_action_found = False
@@ -155,7 +155,7 @@ class DialogSession(models.Model):
             self.update_destination(self.destination, force=True)
 
     def fetch_latest_variables(self):
-        query = Q(dialog_key=self.dialog.key) & Q(date_set__gte=self.started)
+        query = Q(dialog_key=self.dialog.key)
 
         variables = {}
 
