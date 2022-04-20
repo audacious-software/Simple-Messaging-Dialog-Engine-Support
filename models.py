@@ -13,6 +13,8 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import models
 from django.db.models import Q
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.template import Template, Context
 from django.utils import timezone
 
@@ -169,6 +171,55 @@ class DialogSession(models.Model):
                 variables[variable.key] = variable.value
 
         return variables
+
+@receiver(post_save, sender=DialogSession)
+def update_dialog_variables(sender, instance, created, raw, using, update_fields, **kwargs): # pylint: disable=too-many-arguments, too-many-locals, unused-argument, too-many-branches
+    if created is True and raw is False: # pylint: disable=too-many-nested-blocks
+        template_variables = list(DialogTemplateVariable.objects.filter(script=None))
+
+        script_labels = []
+
+        if instance.dialog.script:
+            template_variables.extend(instance.dialog.script.template_variables.all())
+
+            script_labels = instance.dialog.script.labels_list()
+
+        for variable in template_variables:
+            if (variable.key in instance.dialog.metadata) is False:
+                values = variable.value.strip().splitlines()
+
+                if len(values) == 1:
+                    instance.dialog.metadata[variable.key] = variable.value
+                else:
+                    for raw_value in values:
+                        value_tokens = raw_value.split('|')
+
+                        if len(value_tokens) == 1:
+                            instance.dialog.metadata[variable.key] = value_tokens[0]
+                        else:
+                            tag = value_tokens[0]
+
+                            if tag in script_labels:
+                                instance.dialog.metadata[variable.key] = value_tokens[1]
+
+                    if instance.dialog.metadata.get(variable.key, None) is None:
+                        value_tokens = values[0].split('|')
+
+                        instance.dialog.metadata[variable.key] = value_tokens[-1]
+
+        for app in settings.INSTALLED_APPS:
+            try:
+                app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                updates = app_dialog_api.fetch_dialog_metadata(instance.current_destination(), instance.dialog)
+
+                instance.dialog.metadata.update(updates)
+            except ImportError:
+                pass
+            except AttributeError:
+                pass
+
+        instance.dialog.save()
 
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
