@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 
 from quicksilver.decorators import handle_lock
 
-from ...models import DialogSession, DialogVariable
+from ...models import DialogSession, DialogVariable, DialogAlert
 
 class Command(BaseCommand):
     help = 'Encrypts any cleartext phone numbers if suitable key is present.'
@@ -19,3 +19,6 @@ class Command(BaseCommand):
 
         for variable in DialogVariable.objects.all():
             variable.encrypt_sender()
+
+        for alert in DialogAlert.objects.all():
+            alert.encrypt_sender()

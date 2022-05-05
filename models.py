@@ -18,6 +18,11 @@ from django.dispatch import receiver
 from django.template import Template, Context
 from django.utils import timezone
 
+try:
+    from django.db.models import JSONField
+except ImportError:
+    from django.contrib.postgres.fields import JSONField
+
 from django_dialog_engine.models import Dialog, DialogScript
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
@@ -106,7 +111,20 @@ class DialogSession(models.Model):
                         pass # Do nothing - waiting for external choice to be made...
 
                     elif action['type'] == 'alert' or action['type'] == 'raise-alert':
-                        print('ALERT(TODO): %s' % json.dumps(action, indent=2))
+                        now = timezone.now()
+
+                        alert = DialogAlert.objects.create(sender=self.current_destination(), dialog=self.dialog, message=action['message'], added=now, last_updated=now)
+                        alert.encrypt_sender()
+
+                        for app in settings.INSTALLED_APPS:
+                            try:
+                                app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                app_dialog_api.handle_dialog_alert(alert)
+                            except ImportError:
+                                pass
+                            except AttributeError:
+                                pass
                     else:
                         custom_action_found = False
 
@@ -263,3 +281,37 @@ class DialogTemplateVariable(models.Model):
     script = models.ForeignKey(DialogScript, related_name='template_variables', null=True, blank=True, on_delete=models.SET_NULL)
     key = models.CharField(max_length=1024)
     value = models.TextField(max_length=4194304)
+
+class DialogAlert(models.Model):
+    sender = models.CharField(max_length=256)
+    dialog = models.ForeignKey(Dialog, related_name='dialog_alerts', null=True, on_delete=models.SET_NULL)
+
+    message = models.TextField(max_length=(1024 * 1024))
+
+    added = models.DateTimeField()
+    last_updated = models.DateTimeField()
+
+    metadata = JSONField(null=True, blank=True)
+
+    def current_sender(self):
+        if self.sender is not None and self.sender.startswith('secret:'):
+            return decrypt_value(self.sender)
+
+        return self.sender
+
+    def update_sender(self, new_sender, force=False):
+        if force is False and new_sender == self.current_sender():
+            return # Same as current - don't add
+
+        if hasattr(settings, 'SIMPLE_MESSAGING_SECRET_KEY'):
+            encrypted_sender = encrypt_value(new_sender)
+
+            self.sender = encrypted_sender
+        else:
+            self.sender = new_sender
+
+        self.save()
+
+    def encrypt_sender(self):
+        if self.sender.startswith('secret:') is False:
+            self.update_sender(self.sender, force=True)
