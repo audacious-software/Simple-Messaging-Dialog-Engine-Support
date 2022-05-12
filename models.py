@@ -315,3 +315,21 @@ class DialogAlert(models.Model):
     def encrypt_sender(self):
         if self.sender.startswith('secret:') is False:
             self.update_sender(self.sender, force=True)
+
+    def is_unread(self):
+        if self.metadata is None:
+            return True
+
+        return self.metadata.get('read_time', None) is None
+
+    def set_read(self, when):
+        metadata = self.metadata
+
+        if metadata is None:
+            metadata = {}
+
+        metadata['read_time'] = when.isoformat()
+
+        self.metadata = metadata
+
+        self.save()
