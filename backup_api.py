@@ -20,6 +20,7 @@ def incremental_backup(parameters):
     dumpdata_apps = (
         'simple_messaging_dialog_support.DialogSession',
         'simple_messaging_dialog_support.DialogVariable',
+        'simple_messaging_dialog_support.DialogTemplateVariable',
     )
 
     prefix = 'simple_messaging_dialog_support_backup_' + settings.ALLOWED_HOSTS[0]
