@@ -63,7 +63,11 @@ class DialogSession(models.Model):
 
         extras.update(self.fetch_latest_variables())
 
+        print('Process %s' % message)
+
         actions = self.dialog.process(message, extras)
+
+        print('Processed %s' % message)
 
         for app in settings.INSTALLED_APPS:
             try:
