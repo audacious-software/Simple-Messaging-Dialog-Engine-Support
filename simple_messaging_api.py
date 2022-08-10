@@ -69,13 +69,12 @@ def process_outgoing_message(outgoing_message): # pylint: disable=too-many-local
 
                     for node in script_def:
                         if interrupt_minutes is not None and node['type'] == 'time-elapsed-interrupt':
-                            node['hours_elapsed'] = int(interrupt_minutes / 60)
-                            node['minutes_elapsed'] = int(interrupt_minutes % 60)
+                            node['type'] = 'pause'
+                            node['duration'] = interrupt_minutes * 60
 
-                        if pause_minutes is not None and node['type'] == 'pause':
+                        elif pause_minutes is not None and node['type'] == 'pause':
                             node['duration'] = pause_minutes * 60
-
-                        if timeout_minutes is not None and 'timeout' in node:
+                        elif timeout_minutes is not None and 'timeout' in node:
                             node['timeout'] = timeout_minutes * 60
 
                 except json.decoder.JSONDecodeError:
