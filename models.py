@@ -34,7 +34,7 @@ class DialogSession(models.Model):
     last_updated = models.DateTimeField()
     finished = models.DateTimeField(null=True, blank=True)
 
-    def process_response(self, response, extras=None): # pylint: disable=too-many-branches, too-many-statements
+    def process_response(self, response, extras=None): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
         message = None
 
         try:
@@ -61,13 +61,13 @@ class DialogSession(models.Model):
             except AttributeError:
                 pass
 
+        if message is not None:
+            variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=message, date_set=timezone.now())
+            variable.encrypt_sender()
+
         extras.update(self.fetch_latest_variables())
 
-        print('Process %s' % message)
-
         actions = self.dialog.process(message, extras)
-
-        print('Processed %s' % message)
 
         for app in settings.INSTALLED_APPS:
             try:
