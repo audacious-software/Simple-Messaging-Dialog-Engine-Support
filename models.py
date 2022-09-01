@@ -194,6 +194,13 @@ class DialogSession(models.Model):
 
         return variables
 
+    def cancel_sesssion(self):
+        if self.dialog.is_active():
+            self.dialog.finish(finish_reason='user_cancelled')
+            self.last_updated = timezone.now()
+            self.save()
+
+
 @receiver(post_save, sender=DialogSession)
 def update_dialog_variables(sender, instance, created, raw, using, update_fields, **kwargs): # pylint: disable=too-many-arguments, too-many-locals, unused-argument, too-many-branches
     if created is True and raw is False: # pylint: disable=too-many-nested-blocks
