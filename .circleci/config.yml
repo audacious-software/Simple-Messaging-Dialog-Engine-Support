@@ -51,6 +51,7 @@ jobs:
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
+            mkdir -p media/outgoing_message_media
             python manage.py migrate
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
@@ -110,6 +111,7 @@ jobs:
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
+            mkdir -p media/outgoing_message_media
             python manage.py migrate
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
