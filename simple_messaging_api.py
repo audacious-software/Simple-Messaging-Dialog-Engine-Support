@@ -95,6 +95,14 @@ def process_outgoing_message(outgoing_message): # pylint: disable=too-many-local
 
             return metadata
 
+        metadata = {
+            'error': 'Unable to locate dialog %s.' % identifier
+        }
+
+        outgoing_message.errored = True
+
+        return metadata
+
     return None
 
 
