@@ -8,7 +8,7 @@ from django_dialog_engine.models import Dialog, DialogScript
 
 from .models import DialogSession, DialogTemplateVariable
 
-def process_outgoing_message(outgoing_message): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     message_content = outgoing_message.current_message()
 
     if message_content.startswith('dialog:'): # pylint: disable=too-many-nested-blocks
