@@ -15,10 +15,22 @@ class Migration(migrations.Migration):
             model_name='dialogsession',
             name='last_variable_update',
             field=models.DateTimeField(blank=True, null=True),
-        ),
-        migrations.AddField(
+        )
+    ]
+
+	try:
+		from django.db.models import JSONField
+
+		operations.append(migrations.AddField(
             model_name='dialogsession',
             name='latest_variables',
-            field=models.JSONField(default=dict),
-        ),
-    ]
+            field=JSONField(default=dict),
+        ))
+	except ImportError:
+		from django.contrib.postgres.fields import JSONField
+    
+		operations.append(migrations.AddField(
+            model_name='dialogsession',
+            name='latest_variables',
+            field=JSONField(default=dict),
+        ))
