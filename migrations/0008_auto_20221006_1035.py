@@ -18,18 +18,18 @@ class Migration(migrations.Migration):
         )
     ]
 
-	try:
-		from django.db.models import JSONField
+    try:
+        from django.db.models import JSONField
 
-		operations.append(migrations.AddField(
+        operations.append(migrations.AddField(
             model_name='dialogsession',
             name='latest_variables',
             field=JSONField(default=dict),
         ))
-	except ImportError:
-		from django.contrib.postgres.fields import JSONField
-    
-		operations.append(migrations.AddField(
+    except ImportError:
+        from django.contrib.postgres.fields import JSONField
+
+        operations.append(migrations.AddField(
             model_name='dialogsession',
             name='latest_variables',
             field=JSONField(default=dict),
