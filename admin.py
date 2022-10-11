@@ -13,6 +13,8 @@ class DialogSessionAdmin(admin.ModelAdmin):
     else:
         list_display = ('destination', 'dialog', 'started', 'last_updated', 'finished')
 
+    readonly_fields = ['dialog']
+
     list_filter = ('started', 'last_updated', 'finished',)
 
 @admin.register(DialogVariable)

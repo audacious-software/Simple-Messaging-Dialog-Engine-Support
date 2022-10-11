@@ -34,7 +34,10 @@ class DialogSession(models.Model):
     last_updated = models.DateTimeField()
     finished = models.DateTimeField(null=True, blank=True)
 
-    def process_response(self, response, extras=None): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+    latest_variables = JSONField(default=dict)
+    last_variable_update = models.DateTimeField(null=True, blank=True)
+
+    def process_response(self, response, extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
         message = None
 
         try:
@@ -153,7 +156,8 @@ class DialogSession(models.Model):
 
         self.save()
 
-        call_command('simple_messaging_send_pending_messages')
+        if send_messages:
+            call_command('simple_messaging_send_pending_messages')
 
     def current_destination(self):
         if self.destination is not None and self.destination.startswith('secret:'):
@@ -181,16 +185,26 @@ class DialogSession(models.Model):
     def fetch_latest_variables(self):
         query = Q(dialog_key=self.dialog.key)
 
-        variables = {}
+        variables = self.latest_variables
 
         if self.finished is not None:
+            if self.last_variable_update is not None and self.last_variable_update > self.finished:
+                return variables
+
             query = query & Q(date_set__lte=self.finished)
+
+        if self.last_variable_update is not None:
+            query = query & Q(date_set__gte=self.last_variable_update)
 
         current_dest = self.current_destination()
 
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
             if variable.current_sender() == current_dest:
                 variables[variable.key] = variable.value
+
+        self.latest_variables = variables
+        self.last_variable_update = timezone.now()
+        self.save()
 
         return variables
 
@@ -252,12 +266,12 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
-    dialog_key = models.CharField(max_length=256, null=True, blank=True)
+    dialog_key = models.CharField(max_length=256, null=True, blank=True, db_index=True)
 
-    key = models.CharField(max_length=1024)
+    key = models.CharField(max_length=1024, db_index=True)
     value = models.TextField(max_length=4194304)
 
-    date_set = models.DateTimeField()
+    date_set = models.DateTimeField(db_index=True)
 
     def value_truncated(self):
         if len(self.value) > 64:
