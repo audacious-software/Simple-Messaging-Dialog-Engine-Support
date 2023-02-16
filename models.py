@@ -23,7 +23,9 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField
 
+from django_dialog_engine.dialog import DialogError
 from django_dialog_engine.models import Dialog, DialogScript
+
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
 class DialogSession(models.Model):
@@ -147,9 +149,9 @@ class DialogSession(models.Model):
                                     pass
 
                         if custom_action_found is False:
-                            raise Exception('Unknown action: ' + json.dumps(action))
+                            raise DialogError('Unknown action: %s' % json.dumps(action))
                 else:
-                    raise Exception('Unknown action: ' + json.dumps(action))
+                    raise DialogError('Unknown action: %s' % json.dumps(action))
 
         if self.dialog.finished is not None:
             self.finished = self.dialog.finished
@@ -303,7 +305,7 @@ class DialogVariable(models.Model):
             self.update_sender(self.sender, force=True)
 
 class DialogTemplateVariable(models.Model):
-    script = models.ForeignKey(DialogScript, related_name='template_variables', null=True, blank=True, on_delete=models.SET_NULL)
+    script = models.ForeignKey(Disuperfluous-parensalogScript, related_name='template_variables', null=True, blank=True, on_delete=models.SET_NULL)
     key = models.CharField(max_length=1024)
     value = models.TextField(max_length=4194304)
 
@@ -311,7 +313,7 @@ class DialogAlert(models.Model):
     sender = models.CharField(max_length=256)
     dialog = models.ForeignKey(Dialog, related_name='dialog_alerts', null=True, on_delete=models.SET_NULL)
 
-    message = models.TextField(max_length=(1024 * 1024))
+    message = models.TextField(max_length=(1024 * 1024)) # pylint: disable=superfluous-parens
 
     added = models.DateTimeField()
     last_updated = models.DateTimeField()
