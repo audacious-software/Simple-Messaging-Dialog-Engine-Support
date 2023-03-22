@@ -39,8 +39,14 @@ class DialogSession(models.Model):
     latest_variables = JSONField(default=dict)
     last_variable_update = models.DateTimeField(null=True, blank=True)
 
-    def process_response(self, response, extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+    def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
         message = None
+
+        if transmission_extras is None:
+            transmission_extras = {}
+
+        if ('message_channel' in self.latest_variables) and ('message_channel' in transmission_extras) is False: # Add message channel if missing...
+            transmission_extras['message_channel'] = self.latest_variables.get('message_channel')
 
         try:
             if isinstance(response, str):
@@ -101,7 +107,7 @@ class DialogSession(models.Model):
                             'dialog_metadata': self.dialog.metadata
                         }
 
-                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2))
+                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
                         message.encrypt_destination()
                     elif action['type'] == 'pause':
                         # Do nothing - pause will conclude in a subsequent call
