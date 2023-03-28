@@ -95,12 +95,25 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
                 transmission_metadata = json.loads(outgoing_message.transmission_metadata)
             except json.JSONDecodeError:
                 transmission_metadata = {}
+            except TypeError:
+                transmission_metadata = {}
 
             message_channel = transmission_metadata.get('message_channel', None)
 
             if message_channel is not None:
                 new_session.latest_variables['message_channel'] = message_channel
                 new_session.save()
+            else: # Try to be explicit about channel if switchboard is present
+                try:
+                    from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
+
+                    default_channel = Channel.objects.filter(is_default=True).first()
+
+                    if default_channel is not None:
+                        new_session.latest_variables['message_channel'] = default_channel.identifier
+                        new_session.save()
+                except ImportError:
+                    pass
 
             new_session.encrypt_destination()
 
