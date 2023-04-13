@@ -151,6 +151,8 @@ def process_incoming_message(incoming_message):
             try:
                 from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
 
+                processed = False
+
                 message_channel = None
 
                 if session_channel is not None:
