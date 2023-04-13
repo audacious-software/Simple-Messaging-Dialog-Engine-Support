@@ -273,6 +273,8 @@ class DialogVariable(models.Model):
 
     date_set = models.DateTimeField(db_index=True)
 
+    lookup_hash = models.CharField(max_length=1024, null=True, blank=True)
+
     def value_truncated(self):
         if len(self.value) > 64:
             return self.value[:64] + '...' # pylint: disable=unsubscriptable-object
