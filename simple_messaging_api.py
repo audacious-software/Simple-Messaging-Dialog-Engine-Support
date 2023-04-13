@@ -1,6 +1,7 @@
 # pylint: disable=no-member, line-too-long
 
 import json
+import traceback
 
 from django.utils import timezone
 
@@ -87,6 +88,33 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
                 dialog.save()
 
             new_session = DialogSession.objects.create(destination=outgoing_message.current_destination(), dialog=dialog, started=dialog.started, last_updated=dialog.started)
+
+            transmission_metadata = None
+
+            try:
+                transmission_metadata = json.loads(outgoing_message.transmission_metadata)
+            except json.JSONDecodeError:
+                transmission_metadata = {}
+            except TypeError:
+                transmission_metadata = {}
+
+            message_channel = transmission_metadata.get('message_channel', None)
+
+            if message_channel is not None:
+                new_session.transmission_channel = message_channel
+                new_session.save()
+            else: # Try to be explicit about channel if switchboard is present
+                try:
+                    from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
+
+                    default_channel = Channel.objects.filter(is_default=True).first()
+
+                    if default_channel is not None:
+                        new_session.transmission_channel = default_channel.identifier
+                        new_session.save()
+                except ImportError:
+                    pass
+
             new_session.encrypt_destination()
 
             metadata = {
@@ -109,9 +137,45 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 def process_incoming_message(incoming_message):
     sender = incoming_message.current_sender()
 
-    for session in DialogSession.objects.filter(finished=None):
+    message_metadata = {}
+
+    try:
+        message_metadata = json.loads(incoming_message.transmission_metadata)
+    except json.JSONDecodeError:
+        pass
+
+    session_channel = message_metadata.get('message_channel', None)
+
+    for session in DialogSession.objects.filter(finished=None, transmission_channel=session_channel):
         if session.current_destination() == sender:
-            session.process_response(incoming_message.message)
+            try:
+                from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
+
+                processed = False
+
+                message_channel = None
+
+                if session_channel is not None:
+                    message_channel = Channel.objects.filter(identifier=session_channel, is_enabled=True).first()
+                else:
+                    message_channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
+
+                if message_channel is not None: # Found channel for session
+                    extras = {
+                        'message_channel': message_channel.identifier
+                    }
+
+                    session.process_response(incoming_message.message, transmission_extras=extras)
+
+                    processed = True
+                else:
+                    processed = True # Skipping processing - message not associated with dialog w/ a channel
+
+            except ImportError: # No switchboard installed...
+                traceback.print_exc()
+
+            if processed is False:
+                session.process_response(incoming_message.message)
 
 def simple_messaging_record_response(post_request): # pylint: disable=invalid-name, unused-argument
     return True

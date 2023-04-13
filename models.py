@@ -23,7 +23,9 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField
 
+from django_dialog_engine.dialog import DialogError
 from django_dialog_engine.models import Dialog, DialogScript
+
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
 class DialogSession(models.Model):
@@ -37,8 +39,19 @@ class DialogSession(models.Model):
     latest_variables = JSONField(default=dict)
     last_variable_update = models.DateTimeField(null=True, blank=True)
 
-    def process_response(self, response, extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+    transmission_channel = models.CharField(max_length=256, null=True, blank=True)
+
+    def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
         message = None
+
+        if transmission_extras is None:
+            transmission_extras = {}
+
+        if self.transmission_channel is None:
+            if ('message_channel' in self.latest_variables) and ('message_channel' in transmission_extras) is False: # Add message channel if missing...
+                transmission_extras['message_channel'] = self.latest_variables.get('message_channel')
+        else:
+            transmission_extras['message_channel'] = self.transmission_channel
 
         try:
             if isinstance(response, str):
@@ -99,7 +112,7 @@ class DialogSession(models.Model):
                             'dialog_metadata': self.dialog.metadata
                         }
 
-                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2))
+                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
                         message.encrypt_destination()
                     elif action['type'] == 'pause':
                         # Do nothing - pause will conclude in a subsequent call
@@ -147,9 +160,9 @@ class DialogSession(models.Model):
                                     pass
 
                         if custom_action_found is False:
-                            raise Exception('Unknown action: ' + json.dumps(action))
+                            raise DialogError('Unknown action: %s' % json.dumps(action))
                 else:
-                    raise Exception('Unknown action: ' + json.dumps(action))
+                    raise DialogError('Unknown action: %s' % json.dumps(action))
 
         if self.dialog.finished is not None:
             self.finished = self.dialog.finished
@@ -207,6 +220,9 @@ class DialogSession(models.Model):
         self.save()
 
         return variables
+
+    def add_variable(self, key, value, dialog_key=None):
+        DialogVariable.objects.create(sender=self.current_destination(), dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
 
     def cancel_sesssion(self):
         if self.dialog.is_active():
@@ -313,7 +329,7 @@ class DialogAlert(models.Model):
     sender = models.CharField(max_length=256)
     dialog = models.ForeignKey(Dialog, related_name='dialog_alerts', null=True, on_delete=models.SET_NULL)
 
-    message = models.TextField(max_length=(1024 * 1024))
+    message = models.TextField(max_length=(1024 * 1024)) # pylint: disable=superfluous-parens
 
     added = models.DateTimeField()
     last_updated = models.DateTimeField()
