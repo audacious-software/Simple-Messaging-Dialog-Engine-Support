@@ -151,6 +151,8 @@ def process_incoming_message(incoming_message):
             message_channel = message_metadata.get('message_channel', None)
 
             if session_channel == message_channel:
+                processed = False
+
                 try:
                     from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
 
