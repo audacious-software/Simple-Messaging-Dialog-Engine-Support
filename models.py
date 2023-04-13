@@ -39,14 +39,19 @@ class DialogSession(models.Model):
     latest_variables = JSONField(default=dict)
     last_variable_update = models.DateTimeField(null=True, blank=True)
 
+    transmission_channel = models.CharField(max_length=256, null=True, blank=True)
+
     def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
         message = None
 
         if transmission_extras is None:
             transmission_extras = {}
 
-        if ('message_channel' in self.latest_variables) and ('message_channel' in transmission_extras) is False: # Add message channel if missing...
-            transmission_extras['message_channel'] = self.latest_variables.get('message_channel')
+        if self.transmission_channel is None:
+            if ('message_channel' in self.latest_variables) and ('message_channel' in transmission_extras) is False: # Add message channel if missing...
+                transmission_extras['message_channel'] = self.latest_variables.get('message_channel')
+        else:
+            transmission_extras['message_channel'] = self.transmission_channel
 
         try:
             if isinstance(response, str):
@@ -215,6 +220,9 @@ class DialogSession(models.Model):
         self.save()
 
         return variables
+
+    def add_variable(self, key, value, dialog_key=None):
+        DialogVariable.objects.create(sender=self.current_destination(), dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
 
     def cancel_sesssion(self):
         if self.dialog.is_active():

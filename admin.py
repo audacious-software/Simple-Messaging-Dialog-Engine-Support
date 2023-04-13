@@ -9,13 +9,13 @@ from .models import DialogSession, DialogVariable, DialogTemplateVariable, Dialo
 @admin.register(DialogSession)
 class DialogSessionAdmin(admin.ModelAdmin):
     if hasattr(settings, 'SIMPLE_MESSAGING_SHOW_ENCRYPTED_VALUES') and settings.SIMPLE_MESSAGING_SHOW_ENCRYPTED_VALUES:
-        list_display = ('current_destination', 'dialog', 'started', 'last_updated', 'finished')
+        list_display = ('current_destination', 'dialog', 'transmission_channel', 'started', 'last_updated', 'finished')
     else:
-        list_display = ('destination', 'dialog', 'started', 'last_updated', 'finished')
+        list_display = ('destination', 'dialog', 'transmission_channel', 'started', 'last_updated', 'finished')
 
     readonly_fields = ['dialog']
 
-    list_filter = ('started', 'last_updated', 'finished',)
+    list_filter = ('started', 'last_updated', 'finished', 'transmission_channel',)
 
 @admin.register(DialogVariable)
 class DialogVariableAdmin(admin.ModelAdmin):
