@@ -9,7 +9,7 @@ future==0.18.3
 jsonpath-ng==1.6.0
 lockfile==0.12.2
 lxml==4.9.3
-phonenumbers==8.13.21
+phonenumbers==8.13.22
 psycopg2-binary==2.8.6; python_version < '3.0'
 psycopg2-binary==2.9.7; python_version >= '3.0'
 pylint==2.17.7; python_version >= '3.7.2'
