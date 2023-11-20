@@ -24,7 +24,7 @@ except ImportError:
     from django.contrib.postgres.fields import JSONField
 
 from django_dialog_engine.dialog import DialogError
-from django_dialog_engine.models import Dialog, DialogScript
+from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
@@ -104,9 +104,11 @@ class DialogSession(models.Model):
                         # Do nothing - input will come in via HTTP views...
                         pass
                     elif action['type'] == 'echo':
-                        template = Template(action['message'])
+                        rendered_message = apply_template(action['message'], self.dialog.metadata)
 
-                        rendered_message = template.render(Context(self.dialog.metadata))
+                        # template = Template('{% load simple_messaging_dialog_support %}' + str())
+
+                        # rendered_message = template.render(Context())
 
                         message_metadata = {
                             'dialog_metadata': self.dialog.metadata

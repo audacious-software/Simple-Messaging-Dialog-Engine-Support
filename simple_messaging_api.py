@@ -148,10 +148,10 @@ def process_incoming_message(incoming_message):
 
     for session in DialogSession.objects.filter(finished=None, transmission_channel=session_channel):
         if session.current_destination() == sender:
+            processed = False
+
             try:
                 from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
-
-                processed = False
 
                 message_channel = None
 
