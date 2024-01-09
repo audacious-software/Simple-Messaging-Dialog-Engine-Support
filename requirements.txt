@@ -9,7 +9,7 @@ Django==3.2.23; python_version >= '3.0'
 future==0.18.3
 jsonpath-ng==1.6.0
 lockfile==0.12.2
-lxml==5.0.0
+lxml==5.0.1
 phonenumbers==8.13.27
 psycopg2-binary==2.9.9; python_version >= '3.7'
 psycopg2-binary==2.9.8; python_version >= '3.0' and python_version < '3.7'
