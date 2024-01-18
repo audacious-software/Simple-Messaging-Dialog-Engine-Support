@@ -128,6 +128,16 @@ class DialogSession(models.Model):
                                 pass
                             except AttributeError:
                                 pass
+                    elif action['type'] == 'update-value':
+                        for app in settings.INSTALLED_APPS:
+                            try:
+                                app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                app_dialog_api.update_value(self.current_destination(), self.dialog.key, action['key'], action['value'], action['operation'], action['replacement'])
+                            except ImportError:
+                                pass
+                            except AttributeError:
+                                pass
                     elif action['type'] == 'external-choice':
                         pass # Do nothing - waiting for external choice to be made...
 
@@ -215,6 +225,9 @@ class DialogSession(models.Model):
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
             if variable.current_sender() == current_dest:
                 variables[variable.key] = variable.value
+
+                if isinstance(variables[variable.key], str) and variables[variable.key].startswith('json:'):
+                    variables[variable.key] = json.loads(variables[variable.key][5:])
 
         self.latest_variables = variables
         self.last_variable_update = timezone.now()
