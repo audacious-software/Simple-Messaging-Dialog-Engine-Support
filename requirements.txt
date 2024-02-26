@@ -6,7 +6,7 @@ bandit==1.7.1; python_version == '3.6'
 bandit==1.6.2; python_version < '3.0'
 Django==1.11.29; python_version < '3.0'
 Django==3.2.24; python_version >= '3.0'
-future==0.18.3
+future==1.0.0
 jsonpath-ng==1.6.1
 lockfile==0.12.2
 lxml==5.0.1; python_version < '3.0'
