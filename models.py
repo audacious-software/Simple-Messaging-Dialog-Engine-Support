@@ -346,7 +346,7 @@ class DialogTemplateVariable(models.Model):
     value = models.TextField(max_length=4194304)
 
     def __str__(self):
-        return '%[s] %s = %s' % (self.script, self.key, self.value)
+        return '[%s] %s = %s' % (self.script, self.key, self.value)
 
 @python_2_unicode_compatible
 class DialogAlert(models.Model):
