@@ -31,6 +31,7 @@ def export_data_sources(params=None):
 def export_data_types():
     return [
         ('simple_messaging_dialog_support.dialog_variables', 'Session Dialog Variables',),
+        ('simple_messaging_dialog_support.dialog_variable_timeline', 'Dialog Variable Timeline',),
     ]
 
 def compile_data_export(data_type, data_sources, start_time=None, end_time=None, custom_parameters=None): # pylint: disable=too-many-locals, unused-argument, too-many-branches
@@ -111,6 +112,35 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
                                 row.append('')
 
                         writer.writerow(row)
+
+        return filename
+
+    if data_type == 'simple_messaging_dialog_support.dialog_variable_timeline':
+        filename = tempfile.gettempdir() + os.path.sep + 'simple_messaging_dialog_support.dialog_variables.txt'
+
+        with io.open(filename, 'w', encoding='utf-8') as outfile:
+            writer = csv.writer(outfile, delimiter='\t')
+
+            columns = [
+                'Destination',
+                'Dialog',
+                'Date Set',
+                'Key',
+                'Value',
+            ]
+
+            writer.writerow(columns)
+
+            for variable in DialogVariable.objects.order_by('date_set'):
+                row = []
+
+                row.append(fetch_export_identifier(variable.current_sender()))
+                row.append(variable.dialog_key)
+                row.append(variable.date_set.astimezone(here_tz).isoformat())
+                row.append(variable.key)
+                row.append(variable.value)
+
+                writer.writerow(row)
 
         return filename
 
