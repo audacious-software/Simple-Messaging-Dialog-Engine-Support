@@ -17,7 +17,6 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.template import Template, Context
 from django.utils import timezone
 
 try:
@@ -26,7 +25,7 @@ except ImportError:
     from django.contrib.postgres.fields import JSONField
 
 from django_dialog_engine.dialog import DialogError
-from django_dialog_engine.models import Dialog, DialogScript
+from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
@@ -106,9 +105,11 @@ class DialogSession(models.Model):
                         # Do nothing - input will come in via HTTP views...
                         pass
                     elif action['type'] == 'echo':
-                        template = Template(action['message'])
+                        rendered_message = apply_template(action['message'], self.dialog.metadata)
 
-                        rendered_message = template.render(Context(self.dialog.metadata))
+                        # template = Template('{% load simple_messaging_dialog_support %}' + str())
+
+                        # rendered_message = template.render(Context())
 
                         message_metadata = {
                             'dialog_metadata': self.dialog.metadata
@@ -125,6 +126,16 @@ class DialogSession(models.Model):
                                 app_dialog_api = importlib.import_module(app + '.dialog_api')
 
                                 app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], action['value'])
+                            except ImportError:
+                                pass
+                            except AttributeError:
+                                pass
+                    elif action['type'] == 'update-value':
+                        for app in settings.INSTALLED_APPS:
+                            try:
+                                app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                app_dialog_api.update_value(self.current_destination(), self.dialog.key, action['key'], action['value'], action['operation'], action['replacement'])
                             except ImportError:
                                 pass
                             except AttributeError:
@@ -216,6 +227,9 @@ class DialogSession(models.Model):
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
             if variable.current_sender() == current_dest:
                 variables[variable.key] = variable.value
+
+                if isinstance(variables[variable.key], str) and variables[variable.key].startswith('json:'):
+                    variables[variable.key] = json.loads(variables[variable.key][5:])
 
         self.latest_variables = variables
         self.last_variable_update = timezone.now()
