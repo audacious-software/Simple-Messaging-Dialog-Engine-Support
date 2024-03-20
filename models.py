@@ -41,6 +41,9 @@ class DialogSession(models.Model):
     transmission_channel = models.CharField(max_length=256, null=True, blank=True)
 
     def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+        if self.dialog is None:
+            return
+
         message = None
 
         if transmission_extras is None:
@@ -207,6 +210,9 @@ class DialogSession(models.Model):
             self.update_destination(self.destination, force=True)
 
     def fetch_latest_variables(self):
+        if self.dialog is None:
+            return self.latest_variables
+
         query = Q(dialog_key=self.dialog.key)
 
         variables = self.latest_variables
