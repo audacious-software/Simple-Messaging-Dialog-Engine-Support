@@ -9,6 +9,8 @@ import importlib
 import json
 import traceback
 
+from six import python_2_unicode_compatible
+
 from django.conf import settings
 from django.core.management import call_command
 from django.db import models
@@ -250,7 +252,6 @@ class DialogSession(models.Model):
             self.last_updated = timezone.now()
             self.save()
 
-
 @receiver(post_save, sender=DialogSession)
 def update_dialog_variables(sender, instance, created, raw, using, update_fields, **kwargs): # pylint: disable=too-many-arguments, too-many-locals, unused-argument, too-many-branches
     if created is True and raw is False: # pylint: disable=too-many-nested-blocks
@@ -300,6 +301,7 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
+@python_2_unicode_compatible
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
     dialog_key = models.CharField(max_length=256, null=True, blank=True, db_index=True)
@@ -340,11 +342,19 @@ class DialogVariable(models.Model):
         if self.sender.startswith('secret:') is False:
             self.update_sender(self.sender, force=True)
 
+    def __str__(self):
+        return '%s.%s[%s] = %s (%s)' % (self.dialog_key, self.key, self.current_sender(), self.value, self.date_set)
+
+@python_2_unicode_compatible
 class DialogTemplateVariable(models.Model):
     script = models.ForeignKey(DialogScript, related_name='template_variables', null=True, blank=True, on_delete=models.SET_NULL)
     key = models.CharField(max_length=1024)
     value = models.TextField(max_length=4194304)
 
+    def __str__(self):
+        return '[%s] %s = %s' % (self.script, self.key, self.value)
+
+@python_2_unicode_compatible
 class DialogAlert(models.Model):
     sender = models.CharField(max_length=256)
     dialog = models.ForeignKey(Dialog, related_name='dialog_alerts', null=True, on_delete=models.SET_NULL)
@@ -355,6 +365,9 @@ class DialogAlert(models.Model):
     last_updated = models.DateTimeField()
 
     metadata = JSONField(null=True, blank=True)
+
+    def __str__(self):
+        return '%s[s]: %s (%s / %s)' % (self.current_sender(), self.dialog, self.message, self.added)
 
     def current_sender(self):
         if self.sender is not None and self.sender.startswith('secret:'):
