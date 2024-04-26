@@ -1,7 +1,6 @@
 # pylint: disable=no-member, line-too-long
 
 import json
-import traceback
 
 from django.utils import timezone
 
@@ -172,7 +171,7 @@ def process_incoming_message(incoming_message):
                     processed = True # Skipping processing - message not associated with dialog w/ a channel
 
             except ImportError: # No switchboard installed...
-                traceback.print_exc()
+                pass # traceback.print_exc()
 
             if processed is False:
                 session.process_response(incoming_message.message)

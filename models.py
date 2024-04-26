@@ -24,10 +24,20 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField
 
-from django_dialog_engine.dialog import DialogError
+from django_pglocks import advisory_lock
+
+from django_dialog_engine.dialog import DialogError, fetch_default_logger
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
+
+logger = fetch_default_logger()
+
+try:
+    logger = settings.FETCH_LOGGER()
+except AttributeError:
+    pass
+
 
 class DialogSession(models.Model):
     destination = models.CharField(max_length=256)
@@ -46,147 +56,165 @@ class DialogSession(models.Model):
         if self.dialog is None:
             return
 
-        message = None
+        cache_key = 'dialog_session_processing_%s' % self.pk
 
-        if transmission_extras is None:
-            transmission_extras = {}
+        nudge_after = False
 
-        if self.transmission_channel is None:
-            if ('message_channel' in self.latest_variables) and ('message_channel' in transmission_extras) is False: # Add message channel if missing...
-                transmission_extras['message_channel'] = self.latest_variables.get('message_channel')
-        else:
-            transmission_extras['message_channel'] = self.transmission_channel
+        with advisory_lock(cache_key):
+            message = None
 
-        try:
-            if isinstance(response, str):
-                message = response
-            elif response is not None:
-                message = response.message
+            if transmission_extras is None:
+                transmission_extras = {}
 
-            if extras is None:
-                extras = {}
-        except: # pylint: disable=bare-except
-            traceback.print_exc()
+            if self.transmission_channel is None:
+                if ('message_channel' in self.latest_variables) and ('message_channel' in transmission_extras) is False: # Add message channel if missing...
+                    transmission_extras['message_channel'] = self.latest_variables.get('message_channel')
+            else:
+                transmission_extras['message_channel'] = self.transmission_channel
 
-        for app in settings.INSTALLED_APPS:
             try:
-                app_dialog_api = importlib.import_module(app + '.dialog_api')
+                if isinstance(response, str):
+                    message = response
+                elif response is not None:
+                    message = response.message
 
-                dest_variables = app_dialog_api.fetch_destination_variables(self.current_destination())
+                if extras is None:
+                    extras = {}
+            except: # pylint: disable=bare-except
+                traceback.print_exc()
 
-                if dest_variables is not None:
-                    extras.update(dest_variables)
-            except ImportError:
-                pass
-            except AttributeError:
-                pass
+            for app in settings.INSTALLED_APPS:
+                try:
+                    app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-        if message is not None:
-            variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=message, date_set=timezone.now())
-            variable.encrypt_sender()
+                    dest_variables = app_dialog_api.fetch_destination_variables(self.current_destination())
 
-        extras.update(self.fetch_latest_variables())
+                    if dest_variables is not None:
+                        extras.update(dest_variables)
+                except ImportError:
+                    pass
+                except AttributeError:
+                    pass
 
-        actions = self.dialog.process(message, extras)
+            if message is not None:
+                variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=message, date_set=timezone.now())
+                variable.encrypt_sender()
 
-        for app in settings.INSTALLED_APPS:
-            try:
-                app_dialog_api = importlib.import_module(app + '.dialog_api')
+            extras.update(self.fetch_latest_variables())
 
-                app_dialog_api.update_destination_variables(self.current_destination(), extras)
-            except ImportError:
-                pass
-            except AttributeError:
-                pass
+            actions = self.dialog.process(message, extras)
 
-        if actions is not None: # pylint: disable=too-many-nested-blocks
-            self.last_updated = timezone.now()
+            for app in settings.INSTALLED_APPS:
+                try:
+                    app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-            for action in actions: # pylint: disable=unused-variable
-                if 'type' in action:
-                    if action['type'] == 'wait-for-input':
-                        # Do nothing - input will come in via HTTP views...
-                        pass
-                    elif action['type'] == 'echo':
-                        rendered_message = apply_template(action['message'], self.dialog.metadata)
+                    app_dialog_api.update_destination_variables(self.current_destination(), extras)
+                except ImportError:
+                    pass
+                except AttributeError:
+                    pass
 
-                        # template = Template('{% load simple_messaging_dialog_support %}' + str())
+            if actions is not None: # pylint: disable=too-many-nested-blocks
+                self.last_updated = timezone.now()
 
-                        # rendered_message = template.render(Context())
+                for action in actions: # pylint: disable=unused-variable
+                    if 'type' in action:
+                        if action['type'] == 'wait-for-input':
+                            # Do nothing - input will come in via HTTP views...
+                            pass
+                        elif action['type'] == 'echo':
+                            rendered_message = apply_template(action['message'], self.dialog.metadata)
 
-                        message_metadata = {
-                            'dialog_metadata': self.dialog.metadata
-                        }
+                            # template = Template('{% load simple_messaging_dialog_support %}' + str())
 
-                        message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
-                        message.encrypt_destination()
-                    elif action['type'] == 'pause':
-                        # Do nothing - pause will conclude in a subsequent call
-                        pass
-                    elif action['type'] == 'store-value':
-                        for app in settings.INSTALLED_APPS:
-                            try:
-                                app_dialog_api = importlib.import_module(app + '.dialog_api')
+                            # rendered_message = template.render(Context())
 
-                                app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], action['value'])
-                            except ImportError:
-                                pass
-                            except AttributeError:
-                                pass
-                    elif action['type'] == 'update-value':
-                        for app in settings.INSTALLED_APPS:
-                            try:
-                                app_dialog_api = importlib.import_module(app + '.dialog_api')
+                            message_metadata = {
+                                'dialog_metadata': self.dialog.metadata
+                            }
 
-                                app_dialog_api.update_value(self.current_destination(), self.dialog.key, action['key'], action['value'], action['operation'], action['replacement'])
-                            except ImportError:
-                                pass
-                            except AttributeError:
-                                pass
-                    elif action['type'] == 'external-choice':
-                        pass # Do nothing - waiting for external choice to be made...
+                            message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
+                            message.encrypt_destination()
 
-                    elif action['type'] == 'alert' or action['type'] == 'raise-alert':
-                        now = timezone.now()
-
-                        alert = DialogAlert.objects.create(sender=self.current_destination(), dialog=self.dialog, message=action['message'], added=now, last_updated=now)
-                        alert.encrypt_sender()
-
-                        for app in settings.INSTALLED_APPS:
-                            try:
-                                app_dialog_api = importlib.import_module(app + '.dialog_api')
-
-                                app_dialog_api.handle_dialog_alert(alert)
-                            except ImportError:
-                                pass
-                            except AttributeError:
-                                pass
-                    else:
-                        custom_action_found = False
-
-                        for app in settings.INSTALLED_APPS:
-                            if custom_action_found is False:
+                            nudge_after = True
+                        elif action['type'] == 'pause':
+                            # Do nothing - pause will conclude in a subsequent call
+                            pass
+                        elif action['type'] == 'store-value':
+                            for app in settings.INSTALLED_APPS:
                                 try:
                                     app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-                                    custom_action_found = app_dialog_api.execute_dialog_action(self.current_destination(), extras, action)
+                                    app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], action['value'])
                                 except ImportError:
                                     pass
                                 except AttributeError:
                                     pass
 
-                        if custom_action_found is False:
-                            raise DialogError('Unknown action: %s' % json.dumps(action))
-                else:
-                    raise DialogError('Unknown action: %s' % json.dumps(action))
+                            nudge_after = True
+                        elif action['type'] == 'update-value':
+                            for app in settings.INSTALLED_APPS:
+                                try:
+                                    app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-        if self.dialog.finished is not None:
-            self.finished = self.dialog.finished
+                                    app_dialog_api.update_value(self.current_destination(), self.dialog.key, action['key'], action['value'], action['operation'], action['replacement'])
+                                except ImportError:
+                                    pass
+                                except AttributeError:
+                                    pass
 
-        self.save()
+                            nudge_after = True
+                        elif action['type'] == 'external-choice':
+                            pass # Do nothing - waiting for external choice to be made...
 
-        if send_messages:
-            call_command('simple_messaging_send_pending_messages')
+                        elif action['type'] == 'alert' or action['type'] == 'raise-alert':
+                            now = timezone.now()
+
+                            alert = DialogAlert.objects.create(sender=self.current_destination(), dialog=self.dialog, message=action['message'], added=now, last_updated=now)
+                            alert.encrypt_sender()
+
+                            for app in settings.INSTALLED_APPS:
+                                try:
+                                    app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                    app_dialog_api.handle_dialog_alert(alert)
+                                except ImportError:
+                                    pass
+                                except AttributeError:
+                                    pass
+
+                            nudge_after = True
+                        else:
+                            custom_action_found = False
+
+                            for app in settings.INSTALLED_APPS:
+                                if custom_action_found is False:
+                                    try:
+                                        app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                        custom_action_found = app_dialog_api.execute_dialog_action(self.current_destination(), extras, action)
+                                    except ImportError:
+                                        pass
+                                    except AttributeError:
+                                        pass
+
+                            if custom_action_found is False:
+                                raise DialogError('Unknown action: %s' % json.dumps(action))
+                    else:
+                        raise DialogError('Unknown action: %s' % json.dumps(action))
+
+            if self.dialog.finished is not None:
+                self.finished = self.dialog.finished
+
+                nudge_after = False
+
+            self.save()
+
+            if send_messages:
+                call_command('simple_messaging_send_pending_messages', _qs_context=False)
+
+        if nudge_after:
+            self.process_response(None, extras=extras, transmission_extras=transmission_extras, send_messages=send_messages)
 
     def current_destination(self):
         if self.destination is not None and self.destination.startswith('secret:'):
