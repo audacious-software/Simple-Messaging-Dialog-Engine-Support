@@ -119,8 +119,8 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
     if data_type == 'simple_messaging_dialog_support.dialog_variable_timeline':
         filename = tempfile.gettempdir() + os.path.sep + 'simple_messaging_dialog_support.dialog_variables.txt'
 
-        with io.open(filename, 'w', encoding='utf-8') as outfile:
-            writer = csv.writer(outfile, delimiter='\t')
+        with io.open(filename, 'wb') as outfile:
+            writer = UnicodeWriter(outfile, delimiter='\t')
 
             columns = [
                 'Destination',

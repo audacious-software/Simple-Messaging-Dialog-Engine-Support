@@ -1,6 +1,7 @@
 # pylint: disable=no-member, line-too-long
 
 import json
+import traceback
 
 from django.utils import timezone
 
@@ -130,7 +131,7 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
             outgoing_message.errored = True
 
             return metadata
-        except:
+        except: # pylint: disable=bare-except
             traceback.print_exc()
 
     return None
