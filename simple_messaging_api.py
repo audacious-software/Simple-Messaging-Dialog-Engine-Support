@@ -1,7 +1,6 @@
 # pylint: disable=no-member, line-too-long
 
 import json
-import traceback
 
 from django.utils import timezone
 
@@ -147,41 +146,38 @@ def process_incoming_message(incoming_message):
     except json.JSONDecodeError:
         pass
 
-    for session in DialogSession.objects.filter(finished=None):
+    session_channel = message_metadata.get('message_channel', None)
+
+    for session in DialogSession.objects.filter(finished=None, transmission_channel=session_channel):
         if session.current_destination() == sender:
-            session_channel = session.latest_variables.get('message_channel', None)
+            processed = False
 
-            message_channel = message_metadata.get('message_channel', None)
+            try:
+                from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
 
-            if session_channel == message_channel:
-                processed = False
+                message_channel = None
 
-                try:
-                    from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
+                if session_channel is not None:
+                    message_channel = Channel.objects.filter(identifier=session_channel, is_enabled=True).first()
+                else:
+                    message_channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
 
-                    message_channel = None
+                if message_channel is not None: # Found channel for session
+                    extras = {
+                        'message_channel': message_channel.identifier
+                    }
 
-                    if session_channel is not None:
-                        message_channel = Channel.objects.filter(identifier=session_channel, is_enabled=True).first()
-                    else:
-                        message_channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
+                    session.process_response(incoming_message.message, transmission_extras=extras)
 
-                    if message_channel is not None: # Found channel for session
-                        extras = {
-                            'message_channel': message_channel.identifier
-                        }
+                    processed = True
+                else:
+                    processed = True # Skipping processing - message not associated with dialog w/ a channel
 
-                        session.process_response(incoming_message.message, transmission_extras=extras)
+            except ImportError: # No switchboard installed...
+                pass # traceback.print_exc()
 
-                        processed = True
-                    else:
-                        processed = True # Skipping processing - message not associated with dialog w/ a channel
-
-                except ImportError: # No switchboard installed...
-                    traceback.print_exc()
-
-                if processed is False:
-                    session.process_response(incoming_message.message)
+            if processed is False:
+                session.process_response(incoming_message.message)
 
 def simple_messaging_record_response(post_request): # pylint: disable=invalid-name, unused-argument
     return True
