@@ -1,6 +1,5 @@
 # pylint: disable=line-too-long, no-member
 
-import csv
 import importlib
 import io
 import os
@@ -10,7 +9,7 @@ import pytz
 
 from django.conf import settings
 
-from simple_data_export.utils import fetch_export_identifier # pylint: disable=import-error
+from simple_data_export.utils import fetch_export_identifier, UnicodeWriter # pylint: disable=import-error
 
 from .models import DialogSession, DialogVariable
 
@@ -39,8 +38,8 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
     if data_type == 'simple_messaging_dialog_support.dialog_variables':
         filename = tempfile.gettempdir() + os.path.sep + 'simple_messaging_dialog_support.dialog_variables.txt'
 
-        with io.open(filename, 'w', encoding='utf-8') as outfile:
-            writer = csv.writer(outfile, delimiter='\t')
+        with io.open(filename, 'wb') as outfile:
+            writer = UnicodeWriter(outfile, delimiter='\t')
 
             variables = [
                 'Destination',
@@ -105,6 +104,8 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
 
                                 if isinstance(value, list):
                                     row.append('; '.join(value))
+                                elif isinstance(value, bool):
+                                    row.append(str(value))
                                 else:
                                     row.append(value)
                             else:
