@@ -31,10 +31,10 @@ from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
 
-logger = fetch_default_logger()
+logger = fetch_default_logger() # pylint: disable=invalid-name
 
 try:
-    logger = settings.FETCH_LOGGER()
+    logger = settings.FETCH_LOGGER() # pylint: disable=invalid-name
 except AttributeError:
     pass
 
