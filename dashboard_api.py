@@ -103,6 +103,9 @@ def update_dashboard_signal_value(signal_name):
 
         today = timezone.now().astimezone(here_tz).date()
 
+        if start_date is None:
+            start_date = timezone.now() - datetime.timedelta(days=7)
+
         start_date = start_date.astimezone(here_tz).date()
 
         signal = DashboardSignal.objects.filter(name='Daily Dialog Sessions').first()
