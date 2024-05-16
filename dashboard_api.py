@@ -1,8 +1,14 @@
-# pylint: disable=line-too-long, no-member, len-as-condition
+# pylint: disable=line-too-long, no-member, len-as-condition, too-many-locals, too-many-statements
 
+import datetime
 import statistics
 
+import pytz
+
+from django.conf import settings
 from django.utils import timezone
+
+from simple_dashboard.models import DashboardSignal
 
 from .models import DialogSession
 
@@ -11,13 +17,24 @@ def dashboard_signals():
         'name': 'Dialog Sessions',
         'refresh_interval': 300,
         'configuration': {
-            'widget_columns': 6
-        }
+            'widget_columns': 6,
+            'active': True,
+        },
+    }, {
+        'name': 'Daily Dialog Sessions',
+        'refresh_interval': 900,
+        'configuration': {
+            'widget_columns': 6,
+            'active': True,
+        },
     }]
 
 def dashboard_template(signal_name):
     if signal_name == 'Dialog Sessions':
-        return 'simple_dashboard_widget_dialog_sessions.html'
+        return 'dashboard/simple_dashboard_widget_dialog_sessions.html'
+
+    if signal_name == 'Daily Dialog Sessions':
+        return 'dashboard/simple_dashboard_widget_daily_sessions.html'
 
     return None
 
@@ -73,5 +90,51 @@ def update_dashboard_signal_value(signal_name):
             value['closed_session_max_session'] = '%s (%s)' % (closed_max_session.dialog, closed_max_session.started.date())
 
         return value
+
+    if signal_name == 'Daily Dialog Sessions':
+        start_date = None
+
+        first_started = DialogSession.objects.all().order_by('started').first()
+
+        if first_started is not None:
+            start_date = first_started.started
+
+        here_tz = pytz.timezone(settings.TIME_ZONE)
+
+        today = timezone.now().astimezone(here_tz).date()
+
+        start_date = start_date.astimezone(here_tz).date()
+
+        signal = DashboardSignal.objects.filter(name='Daily Dialog Sessions').first()
+
+        if signal is not None:
+            window_size = signal.configuration.get('window_size', 60)
+
+            window_start = today - datetime.timedelta(days=window_size)
+
+            start_date = max(start_date, window_start)
+
+        session_dates = []
+
+        while start_date <= today:
+            day_start = datetime.time(0, 0, 0, 0)
+
+            lookup_start = here_tz.localize(datetime.datetime.combine(start_date, day_start))
+
+            day_end = datetime.time(23, 59, 59, 999999)
+
+            lookup_end = here_tz.localize(datetime.datetime.combine(start_date, day_end))
+
+            day_log = {
+                'date': start_date.isoformat(),
+                'sessions_started': DialogSession.objects.filter(started__gte=lookup_start, started__lte=lookup_end).count(),
+                'sessions_finished': DialogSession.objects.filter(finished__gte=lookup_start, finished__lte=lookup_end).count(),
+            }
+
+            session_dates.append(day_log)
+
+            start_date += datetime.timedelta(days=1)
+
+        return session_dates
 
     return None

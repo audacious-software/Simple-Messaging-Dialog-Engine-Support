@@ -1,27 +1,31 @@
 {% with signal.latest_value as latest_value %}
 	{% if latest_value %}
 		{% with latest_value.fetch_value as fetched_value %}
-			<div class="mdc-typography mdc-typography--body2" style="margin-top: 16px;">
-				Total Sessions: <strong>{{ fetched_value.total_sessions }}</strong><br /><br />
-				Open Sessions: <strong>{{ fetched_value.open_sessions }}</strong><br />
-				{% if fetched_value.open_sessions > 0 %}
-					<div style="margin-left: 1em; margin-bottom: 1em;">
-						Mean Duration: <strong class="humanize_timestamp">{{ fetched_value.open_session_mean_duration }}</strong><br />
-						Longest Duration: <strong class="humanize_timestamp">{{ fetched_value.open_session_max_duration }}</strong><br />
-						Standard Deviation: <strong class="humanize_timestamp">{{ fetched_value.open_session_stdev_duration }}</strong><br />
-						Oldest Session: <strong>{{ fetched_value.open_session_max_session }}</strong><br />
-					</div>
-				{% endif %}
-				Completed Sessions: <strong>{{ fetched_value.closed_sessions }}</strong><br />
-				{% if fetched_value.closed_sessions > 0 %}
-					<div style="margin-left: 1em;">
-						Mean Duration: <strong class="humanize_timestamp">{{ fetched_value.closed_session_mean_duration }}</strong><br />
-						Longest Duration: <strong class="humanize_timestamp">{{ fetched_value.closed_session_max_duration }}</strong><br />
-						Standard Deviation: <strong class="humanize_timestamp">{{ fetched_value.closed_session_stdev_duration }}</strong><br />
-						Longest Session: <strong>{{ fetched_value.closed_session_max_session }}</strong><br />
-					</div>
-				{% endif %}
-			</div>
+			<p class="mdc-typography mdc-typography--body2" style="margin-top: 16px; margin-bottom: 0;">
+				Total Sessions: <strong>{{ fetched_value.total_sessions }}</strong>
+			</p>
+			<p class="mdc-typography mdc-typography--body2" style="margin-top: 0.5em; margin-bottom: 0;">
+				Open Sessions: <strong>{{ fetched_value.open_sessions }}</strong>
+			</p>
+			{% if fetched_value.open_sessions > 0 %}
+				<p style="margin-left: 1em; margin-top: 0; margin-bottom: 0;" class="mdc-typography mdc-typography--body2">
+					Mean Duration: <strong class="humanize_timestamp">{{ fetched_value.open_session_mean_duration }}</strong><br />
+					Longest Duration: <strong class="humanize_timestamp">{{ fetched_value.open_session_max_duration }}</strong><br />
+					Standard Deviation: <strong class="humanize_timestamp">{{ fetched_value.open_session_stdev_duration }}</strong><br />
+					Oldest Session: <strong>{{ fetched_value.open_session_max_session }}</strong>
+				</p>
+			{% endif %}
+			<p class="mdc-typography mdc-typography--body2" style="margin-top: 0.5em; margin-bottom: 0;">
+				Completed Sessions: <strong>{{ fetched_value.closed_sessions }}</strong>
+			</p>
+			{% if fetched_value.closed_sessions > 0 %}
+				<p style="margin-left: 1em; margin-top: 0; margin-bottom: 0;" class="mdc-typography mdc-typography--body2">
+					Mean Duration: <strong class="humanize_timestamp">{{ fetched_value.closed_session_mean_duration }}</strong><br />
+					Longest Duration: <strong class="humanize_timestamp">{{ fetched_value.closed_session_max_duration }}</strong><br />
+					Standard Deviation: <strong class="humanize_timestamp">{{ fetched_value.closed_session_stdev_duration }}</strong><br />
+					Longest Session: <strong>{{ fetched_value.closed_session_max_session }}</strong>
+				</p>
+			{% endif %}
 		{% endwith %}
 		<div class="mdc-typography mdc-typography--caption" style="margin-top: 8px;">
 			Last updated: <strong>{{ latest_value.recorded }}</strong>

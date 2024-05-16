@@ -1,0 +1,69 @@
+{% with signal.latest_value as latest_value %}
+    {% with latest_value.fetch_value as log_items %}
+        <div class="mdc-typography mdc-typography--body1" style="margin-top: 16px;">
+            <div style="height: 240px;">
+                <canvas id="simple_dashboard_signal_{{ signal.pk }}"></canvas>
+            </div>
+
+            <script>
+                (function () {
+                    const chartElement = document.getElementById('simple_dashboard_signal_{{ signal.pk }}');
+
+                    const labels = []
+
+                    const started = []
+                    const finished = []
+
+                    {% for log_item in log_items %}
+                        labels.push(moment('{{ log_item.date }}').format('MMM D'))
+                        started.push({{ log_item.sessions_started }})
+                        finished.push({{ log_item.sessions_finished }})
+                    {% endfor %}
+
+                    new Chart(chartElement, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Sessions Finished',
+                                data: finished,
+                                borderColor: '#D50000',
+                                backgroundColor: '#D50000',
+                            }, {
+                                label: 'Sessions Started',
+                                data: started,
+                                borderColor: '#00C853',
+                                backgroundColor: '#00C853',
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                },
+                                y: {
+                                    stacked: true,
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            }
+                        }
+                    })
+                })();
+            </script>
+        </div>
+		<div class="mdc-typography mdc-typography--caption" style="margin-top: 8px;">
+			Last updated: <strong>{{ latest_value.recorded }}</strong>
+		</div>
+    {% endwith %}
+{% endwith %}
+
+
