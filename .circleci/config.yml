@@ -33,7 +33,7 @@ jobs:
             sudo apt-get update && sudo apt-get install -y gdal-bin
             python3 -m venv --copies /home/circleci/venv
             . /home/circleci/venv/bin/activate
-            pip install -r requirements.txt --progress-bar off
+            pip install -r requirements.txt
             cd ..
             mv project simple_messaging_dialog_support
             mkdir django
@@ -42,26 +42,31 @@ jobs:
             mv ../simple_messaging_dialog_support smds
             cd smds
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
-            pip install -r simple_messaging/requirements.txt --progress-bar off
+            pip install -r simple_messaging/requirements.txt
             git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
-            pip install -r django_dialog_engine/requirements.txt --progress-bar off
+            pip install -r django_dialog_engine/requirements.txt
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
-            pip install -r quicksilver/requirements.txt --progress-bar off
+            pip install -r quicksilver/requirements.txt
             git clone https://github.com/audacious-software/Simple-Data-Export-Django.git simple_data_export
-            pip install -r simple_data_export/requirements.txt --progress-bar off
-            cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
-            cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
+            pip install -r simple_data_export/requirements.txt
+            git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
+            pip install -r simple_dashboard/requirements.txt
+            pip install -r simple_messaging_dialog_support/requirements.txt
+            cp simple_messaging_dialog_support/.circleci/circle_settings.py smds/settings.py
+            cp simple_messaging_dialog_support/.circleci/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
             python manage.py migrate
+            python manage.py install_quicksilver_tasks
+            python manage.py simple_dashboard_update_values
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
             pylint quicksilver
             pylint django_dialog_engine
             pylint simple_messaging
             pylint simple_messaging_dialog_support
-            bandit -r .      
+            bandit -r .
       - save_cache:
           key: venv-38-{{ .Branch }}-{{ checksum "/home/circleci/django/smds/simple_messaging_dialog_support/requirements.txt" }}
           paths:
@@ -95,7 +100,7 @@ jobs:
             . /home/circleci/venv/bin/activate
             pip install -U pip
             pip install wheel
-            pip install -r requirements.txt --progress-bar off
+            pip install -r requirements.txt
             cd ..
             mv project simple_messaging_dialog_support
             mkdir django
@@ -104,26 +109,30 @@ jobs:
             mv ../simple_messaging_dialog_support smds
             cd smds
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
-            pip install -r simple_messaging/requirements.txt --progress-bar off
+            pip install -r simple_messaging/requirements.txt
             git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
-            pip install -r django_dialog_engine/requirements.txt --progress-bar off
+            pip install -r django_dialog_engine/requirements.txt
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
-            pip install -r quicksilver/requirements.txt --progress-bar off
+            pip install -r quicksilver/requirements.txt
             git clone https://github.com/audacious-software/Simple-Data-Export-Django.git simple_data_export
-            pip install -r simple_data_export/requirements.txt --progress-bar off
+            pip install -r simple_data_export/requirements.txt
+            git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
+            pip install -r simple_dashboard/requirements.txt
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
             python manage.py migrate
+            python manage.py install_quicksilver_tasks
+            python manage.py simple_dashboard_update_values
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
             pylint quicksilver
             pylint django_dialog_engine
             pylint simple_messaging
             pylint simple_messaging_dialog_support
-            bandit -r .      
+            bandit -r .
       - save_cache:
           key: venv-37-{{ .Branch }}-{{ checksum "/home/circleci/django/smds/simple_messaging_dialog_support/requirements.txt" }}
           paths:
@@ -157,7 +166,7 @@ jobs:
             . /home/circleci/venv/bin/activate
             pip install -U pip
             pip install wheel
-            pip install -r requirements.txt --progress-bar off
+            pip install -r requirements.txt
             cd ..
             mv project simple_messaging_dialog_support
             mkdir django
@@ -166,26 +175,30 @@ jobs:
             mv ../simple_messaging_dialog_support smds
             cd smds
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
-            pip install -r simple_messaging/requirements.txt --progress-bar off
+            pip install -r simple_messaging/requirements.txt
             git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
-            pip install -r django_dialog_engine/requirements.txt --progress-bar off
+            pip install -r django_dialog_engine/requirements.txt
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
-            pip install -r quicksilver/requirements.txt --progress-bar off
+            pip install -r quicksilver/requirements.txt
             git clone https://github.com/audacious-software/Simple-Data-Export-Django.git simple_data_export
-            pip install -r simple_data_export/requirements.txt --progress-bar off
+            pip install -r simple_data_export/requirements.txt
+            git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
+            pip install -r simple_dashboard/requirements.txt
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
             python manage.py migrate
+            python manage.py install_quicksilver_tasks
+            python manage.py simple_dashboard_update_values
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
             pylint quicksilver
             pylint django_dialog_engine
             pylint simple_messaging
             pylint simple_messaging_dialog_support
-            bandit -r .      
+            bandit -r .
       - save_cache:
           key: venv-36-{{ .Branch }}-{{ checksum "/home/circleci/django/smds/simple_messaging_dialog_support/requirements.txt" }}
           paths:
@@ -218,7 +231,7 @@ jobs:
             . /home/circleci/venv/bin/activate
             pip install -U pip
             pip install wheel
-            pip install -r requirements.txt --progress-bar off
+            pip install -r requirements.txt
             cd ..
             mv project simple_messaging_dialog_support
             mkdir django
@@ -227,26 +240,30 @@ jobs:
             mv ../simple_messaging_dialog_support smds
             cd smds
             git clone https://github.com/audacious-software/Simple-Messaging-Django.git simple_messaging
-            pip install -r simple_messaging/requirements.txt --progress-bar off
+            pip install -r simple_messaging/requirements.txt
             git clone https://github.com/audacious-software/Django-Dialog-Engine.git django_dialog_engine
-            pip install -r django_dialog_engine/requirements.txt --progress-bar off
+            pip install -r django_dialog_engine/requirements.txt
             git clone https://github.com/audacious-software/Quicksilver-Django.git quicksilver
-            pip install -r quicksilver/requirements.txt --progress-bar off
+            pip install -r quicksilver/requirements.txt
             git clone https://github.com/audacious-software/Simple-Data-Export-Django.git simple_data_export
-            pip install -r simple_data_export/requirements.txt --progress-bar off
+            pip install -r simple_data_export/requirements.txt
+            git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
+            pip install -r simple_dashboard/requirements.txt
             cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
             cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
             python manage.py migrate
+            python manage.py install_quicksilver_tasks
+            python manage.py simple_dashboard_update_values
             python manage.py test
             cp simple_messaging_dialog_support/.pylintrc .
             pylint quicksilver
             pylint django_dialog_engine
             pylint simple_messaging
             pylint simple_messaging_dialog_support
-            bandit -r .      
+            bandit -r .
       - save_cache:
           key: venv-27-{{ .Branch }}-{{ checksum "/home/circleci/django/smds/simple_messaging_dialog_support/requirements.txt" }}
           paths:

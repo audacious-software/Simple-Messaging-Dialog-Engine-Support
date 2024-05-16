@@ -29,6 +29,7 @@ INSTALLED_APPS = (
     'django.contrib.gis',
     'quicksilver',
     'simple_messaging',
+    'simple_dashboard',
     'django_dialog_engine',
     'simple_messaging_dialog_support',
 )
@@ -44,7 +45,7 @@ MIDDLEWARE = (
     'django.middleware.security.SecurityMiddleware',
 )
 
-ROOT_URLCONF = 'simple_messaging_dialog_support.circle_urls'
+ROOT_URLCONF = 'smds.circle_urls'
 
 TEMPLATES = [
     {
