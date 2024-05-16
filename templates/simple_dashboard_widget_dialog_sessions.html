@@ -1,0 +1,123 @@
+{% with signal.latest_value as latest_value %}
+	{% if latest_value %}
+		{% with latest_value.fetch_value as fetched_value %}
+			<div class="mdc-typography mdc-typography--body2" style="margin-top: 16px;">
+				Total Sessions: <strong>{{ fetched_value.total_sessions }}</strong><br /><br />
+				Open Sessions: <strong>{{ fetched_value.open_sessions }}</strong><br />
+				{% if fetched_value.open_sessions > 0 %}
+					<div style="margin-left: 1em; margin-bottom: 1em;">
+						Mean Duration: <strong class="humanize_timestamp">{{ fetched_value.open_session_mean_duration }}</strong><br />
+						Longest Duration: <strong class="humanize_timestamp">{{ fetched_value.open_session_max_duration }}</strong><br />
+						Standard Deviation: <strong class="humanize_timestamp">{{ fetched_value.open_session_stdev_duration }}</strong><br />
+						Oldest Session: <strong>{{ fetched_value.open_session_max_session }}</strong><br />
+					</div>
+				{% endif %}
+				Completed Sessions: <strong>{{ fetched_value.closed_sessions }}</strong><br />
+				{% if fetched_value.closed_sessions > 0 %}
+					<div style="margin-left: 1em;">
+						Mean Duration: <strong class="humanize_timestamp">{{ fetched_value.closed_session_mean_duration }}</strong><br />
+						Longest Duration: <strong class="humanize_timestamp">{{ fetched_value.closed_session_max_duration }}</strong><br />
+						Standard Deviation: <strong class="humanize_timestamp">{{ fetched_value.closed_session_stdev_duration }}</strong><br />
+						Longest Session: <strong>{{ fetched_value.closed_session_max_session }}</strong><br />
+					</div>
+				{% endif %}
+			</div>
+		{% endwith %}
+		<div class="mdc-typography mdc-typography--caption" style="margin-top: 8px;">
+			Last updated: <strong>{{ latest_value.recorded }}</strong>
+		</div>
+	{% else %}
+		<div class="mdc-typography mdc-typography--body1" style="margin-top: 16px;">
+			<em>No values logged yet&#8230;</em>
+		</div>
+	{% endif %}
+{% endwith %}
+<script>
+	const humanizeDuration = function(duration) {
+		console.log(`duration ${duration}`)
+
+		const dayDuration = 24 * 60 * 60
+
+		const days = Math.floor(duration / dayDuration)
+
+		while (duration > dayDuration) {
+			duration -= dayDuration
+		}
+
+		const hourDuration = 60 * 60
+
+		const hours = Math.floor(duration / hourDuration)
+
+		while (duration >  hourDuration) {
+			duration -= hourDuration
+		}
+
+		const minuteDuration = 60
+
+		const minutes = Math.floor(duration / minuteDuration)
+
+		while (duration >  minuteDuration) {
+			duration -= minuteDuration
+		}
+
+		const seconds = Math.floor(duration)
+
+		console.log(`days ${days} / ${dayDuration}, hours ${hours} / ${hourDuration}, minutes ${minutes}, seconds ${seconds}`)
+
+		let formatted = ''
+
+		if (days > 0) {
+			if (days == 1) {
+				formatted += '1 day'
+			} else {
+				formatted += `${days} days`
+			}
+		}
+
+		if (hours > 0 || formatted !== '') {
+			if (formatted !== '') {
+				formatted += ', '
+			}
+
+			if (hours == 1) {
+				formatted += '1 hour'
+			} else {
+				formatted += `${hours} hours`
+			}
+		}
+
+		if (minutes > 0 || formatted !== '') {
+			if (formatted !== '') {
+				formatted += ', '
+			}
+
+			if (minutes == 1) {
+				formatted += '1 minute'
+			} else {
+				formatted += `${minutes} minutes`
+			}
+		}
+
+		if (seconds > 0 || formatted !== '') {
+			if (formatted !== '') {
+				formatted += ', '
+			}
+
+			if (seconds == 1) {
+				formatted += '1 second'
+			} else {
+				formatted += `${seconds} seconds`
+			}
+		}
+
+		return formatted
+	}
+
+	$(document).ready(function() {
+		$.each($('.humanize_timestamp'), function(index, element) {
+			const duration = parseFloat($(element).text())
+
+			$(element).html(humanizeDuration(duration))
+		});
+	})
+</script>
