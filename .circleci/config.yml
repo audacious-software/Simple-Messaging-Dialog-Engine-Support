@@ -118,8 +118,8 @@ jobs:
             pip install -r simple_data_export/requirements.txt
             git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
             pip install -r simple_dashboard/requirements.txt
-            cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
-            cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
+            cp simple_messaging_dialog_support/.circleci/circle_settings.py smds/settings.py
+            cp simple_messaging_dialog_support/.circleci/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
@@ -184,8 +184,8 @@ jobs:
             pip install -r simple_data_export/requirements.txt
             git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
             pip install -r simple_dashboard/requirements.txt
-            cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
-            cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
+            cp simple_messaging_dialog_support/.circleci/circle_settings.py smds/settings.py
+            cp simple_messaging_dialog_support/.circleci/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
@@ -249,8 +249,8 @@ jobs:
             pip install -r simple_data_export/requirements.txt
             git clone https://github.com/audacious-software/Simple-Dashboard-Django.git simple_dashboard
             pip install -r simple_dashboard/requirements.txt
-            cp simple_messaging_dialog_support/circle_settings.py smds/settings.py
-            cp simple_messaging_dialog_support/circle_urls.py smds/urls.py
+            cp simple_messaging_dialog_support/.circleci/circle_settings.py smds/settings.py
+            cp simple_messaging_dialog_support/.circleci/circle_urls.py smds/urls.py
             mkdir -p media/simple_data_export_uploads
             mkdir -p media/incoming_message_media
             mkdir -p media/outgoing_message_media
