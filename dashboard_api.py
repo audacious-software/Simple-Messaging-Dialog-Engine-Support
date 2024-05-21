@@ -49,6 +49,8 @@ def update_dashboard_signal_value(signal_name):
             'closed_sessions': closed_sessions.count(),
         }
 
+        value['display_value'] = '%s total sessions, %s open sessions, %s closed sessions' % (value['total_sessions'], value['open_sessions'], value['closed_sessions'])
+
         now = timezone.now()
 
         open_durations = []
