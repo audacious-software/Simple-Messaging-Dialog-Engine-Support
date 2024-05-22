@@ -103,6 +103,7 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
                 if message_channel is not None:
                     new_session.latest_variables['message_channel'] = message_channel
+                    new_session.transmission_channel = message_channel
                     new_session.save()
                 else: # Try to be explicit about channel if switchboard is present
                     try:
