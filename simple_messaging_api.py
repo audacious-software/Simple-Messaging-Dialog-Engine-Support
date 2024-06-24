@@ -139,8 +139,6 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
 
 def process_incoming_message(incoming_message):
-    from simple_messaging_switchboard.models import Channel
-
     sender = incoming_message.current_sender()
 
     transmission_metadata = {}
@@ -150,28 +148,33 @@ def process_incoming_message(incoming_message):
     except json.JSONDecodeError:
         pass
 
-    channel_name = transmission_metadata.get('message_channel', None)
+    message_channel = None
 
-    message_channel = Channel.objects.filter(identifier=channel_name, is_enabled=True).first()
+    try:
+        from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
+
+        channel_name = transmission_metadata.get('message_channel', None)
+
+        channel = Channel.objects.filter(identifier=channel_name, is_enabled=True).first()
+
+        if channel is not None:
+            message_channel = channel.identifier
+
+    except ImportError:
+        pass
 
     for session in DialogSession.objects.filter(finished=None, transmission_channel=message_channel):
         if session.current_destination() == sender:
             processed = False
 
-            try:
-                if message_channel is not None: # Found channel for session
-                    extras = {
-                        'message_channel': message_channel.identifier
-                    }
+            if message_channel is not None: # Found channel for session
+                extras = {
+                    'message_channel': message_channel
+                }
 
-                    session.process_response(incoming_message.message, transmission_extras=extras)
+                session.process_response(incoming_message.message, transmission_extras=extras)
 
-                    processed = True
-                else:
-                    processed = True # Skipping processing - message not associated with dialog w/ a channel
-
-            except ImportError: # No switchboard installed...
-                pass # traceback.print_exc()
+                processed = True
 
             if processed is False:
                 session.process_response(incoming_message.message)
