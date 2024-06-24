@@ -139,31 +139,26 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
 
 def process_incoming_message(incoming_message):
+    from simple_messaging_switchboard.models import Channel
+
     sender = incoming_message.current_sender()
 
-    message_metadata = {}
+    transmission_metadata = {}
 
     try:
-        message_metadata = json.loads(incoming_message.transmission_metadata)
+        transmission_metadata = json.loads(incoming_message.transmission_metadata)
     except json.JSONDecodeError:
         pass
 
-    session_channel = message_metadata.get('message_channel', None)
+    channel_name = transmission_metadata.get('message_channel', None)
 
-    for session in DialogSession.objects.filter(finished=None, transmission_channel=session_channel):
+    message_channel = Channel.objects.filter(identifier=channel_name, is_enabled=True).first()
+
+    for session in DialogSession.objects.filter(finished=None, transmission_channel=message_channel):
         if session.current_destination() == sender:
             processed = False
 
             try:
-                from simple_messaging_switchboard.models import Channel # pylint: disable=import-outside-toplevel
-
-                message_channel = None
-
-                if session_channel is not None:
-                    message_channel = Channel.objects.filter(identifier=session_channel, is_enabled=True).first()
-                else:
-                    message_channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
-
                 if message_channel is not None: # Found channel for session
                     extras = {
                         'message_channel': message_channel.identifier
