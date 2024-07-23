@@ -66,7 +66,7 @@ def update_dashboard_signal_value(signal_name):
                 open_max_duration = duration
                 open_max_session = session
 
-        if len(open_durations) > 0:
+        if len(open_durations) > 1:
             value['open_session_mean_duration'] = statistics.mean(open_durations)
             value['open_session_stdev_duration'] = statistics.stdev(open_durations)
             value['open_session_max_duration'] = open_max_duration

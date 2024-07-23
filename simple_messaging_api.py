@@ -72,12 +72,12 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
                         for node in script_def:
                             if interrupt_minutes is not None and node['type'] == 'time-elapsed-interrupt':
                                 node['type'] = 'pause'
-                                node['duration'] = interrupt_minutes * 60
+                                node['duration'] = int(interrupt_minutes * 60)
 
                             elif pause_minutes is not None and node['type'] == 'pause':
-                                node['duration'] = pause_minutes * 60
+                                node['duration'] = int(pause_minutes * 60)
                             elif timeout_minutes is not None and 'timeout' in node:
-                                node['timeout'] = timeout_minutes * 60
+                                node['timeout'] = int(timeout_minutes * 60)
 
                     except ValueError:
                         pass
