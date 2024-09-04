@@ -1,7 +1,8 @@
 version: 2.1
 
 orbs:
-  python: circleci/python@1.2
+  python: circleci/python@2.1.1
+  node: circleci/node@5.0.3
 
 workflows:
   build:
@@ -24,9 +25,15 @@ jobs:
           POSTGRES_DB: circle_test
           POSTGRES_PASSWORD: ""
     steps:
+      - node/install
       - checkout
       - restore_cache:
           key: venv-3-{{ .Branch }}-{{ checksum "requirements.txt" }}
+      - run:
+          name: Validate Javascript code
+          command: |
+            npm install
+            npx eslint static/builder-js/js/
       - run:
           name: Build and validate
           command: |
@@ -89,9 +96,15 @@ jobs:
           POSTGRES_DB: circle_test
           POSTGRES_PASSWORD: ""
     steps:
+      - node/install
       - checkout
       - restore_cache:
           key: venv-37-{{ .Branch }}-{{ checksum "requirements.txt" }}
+      - run:
+          name: Validate Javascript code
+          command: |
+            npm install
+            npx eslint static/builder-js/js/
       - run:
           name: Build and validate
           command: |
@@ -155,9 +168,15 @@ jobs:
           POSTGRES_DB: circle_test
           POSTGRES_PASSWORD: ""
     steps:
+      - node/install
       - checkout
       - restore_cache:
           key: venv-36-{{ .Branch }}-{{ checksum "requirements.txt" }}
+      - run:
+          name: Validate Javascript code
+          command: |
+            npm install
+            npx eslint static/builder-js/js/
       - run:
           name: Build and validate
           command: |
@@ -220,9 +239,15 @@ jobs:
           POSTGRES_DB: circle_test
           POSTGRES_PASSWORD: ""
     steps:
+      - node/install
       - checkout
       - restore_cache:
           key: venv-2-{{ .Branch }}-{{ checksum "requirements.txt" }}
+      - run:
+          name: Validate Javascript code
+          command: |
+            npm install
+            npx eslint static/builder-js/js/
       - run:
           name: Build and validate
           command: |

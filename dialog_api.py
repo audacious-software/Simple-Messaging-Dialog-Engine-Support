@@ -5,6 +5,9 @@ import traceback
 
 from django.utils import timezone
 
+from django_dialog_engine.dialog import BaseNode, DialogTransition
+
+from .dialog import StartNewSessionNode
 from .models import DialogVariable
 
 def store_value(sender, dialog_key, key, value):
@@ -173,3 +176,8 @@ def update_value(sender, dialog_key, key, value, operation, replacement): # pyli
 
 def fetch_destination_variables(destination): # pylint: disable=unused-argument
     return None
+
+def dialog_builder_cards():
+    return [
+        ('Start New Session', 'start-new-session',),
+    ]

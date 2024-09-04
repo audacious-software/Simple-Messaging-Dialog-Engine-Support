@@ -184,6 +184,21 @@ class DialogSession(models.Model):
                                     pass
 
                             nudge_after = True
+                        elif action['type'] == 'start-new-session':
+                            script_id = action.get('script_id', None)
+
+                            if script_id is not None:
+                                transmission_metadata = {}
+
+                                if (self.transmission_channel in (None, '',)) is False:
+                                    transmission_metadata['message_channel'] = self.transmission_channel
+
+                                OutgoingMessage.objects.create(destination=self.destination, message='dialog:%s' % script_id, send_date=timezone.now(), transmission_metadata=json.dumps(transmission_metadata, indent=2))
+
+                                if self.dialog.is_active():
+                                    self.dialog.finish(finish_reason='start_new_dialog')
+                                    self.last_updated = timezone.now()
+                                    self.save()
                         else:
                             custom_action_found = False
 
