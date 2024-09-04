@@ -1,6 +1,8 @@
 # pylint: disable=line-too-long, super-with-arguments, no-member, cyclic-import
 
-from django_dialog_engine.dialog.base_node import BaseNode, DialogTransition
+import json
+
+from django_dialog_engine.dialog.base_node import BaseNode, DialogTransition, fetch_default_logger
 
 class StartNewSessionNode(BaseNode):
     @staticmethod

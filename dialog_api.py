@@ -5,9 +5,6 @@ import traceback
 
 from django.utils import timezone
 
-from django_dialog_engine.dialog import BaseNode, DialogTransition
-
-from .dialog import StartNewSessionNode
 from .models import DialogVariable
 
 def store_value(sender, dialog_key, key, value):
