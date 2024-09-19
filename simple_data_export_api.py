@@ -8,6 +8,7 @@ import tempfile
 import pytz
 
 from django.conf import settings
+from django.db.models import Q
 
 from simple_data_export.utils import fetch_export_identifier, UnicodeWriter # pylint: disable=import-error
 
@@ -146,3 +147,36 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
         return filename
 
     return None
+
+def simple_messaging_export_fields(data_type):
+    if data_type == 'simple_messaging.conversation_transcripts': # or link click export
+        return [
+            'Django Dialog Engine: Active Dialog',
+        ]
+
+    return []
+
+def simple_messaging_export_field_values(data_type, message, extra_fields):
+    values = {}
+
+    if data_type == 'simple_messaging.conversation_transcripts':
+        for extra_field in extra_fields:
+            if extra_field == 'Django Dialog Engine: Active Dialog':
+                participant = message.get('raw_recipient', None)
+
+                if participant is None:
+                    participant = message.get('raw_sender', None)
+
+                when = message.get('datetime', None)
+
+                query = Q(started__lte=when) & (Q(finished=None) | Q(finished__gte=when))
+
+                dialogs = []
+
+                for session in DialogSession.objects.filter(query):
+                    if session.current_destination() == participant:
+                        dialogs.append(session.dialog.script.identifier)
+
+                values[extra_field] = ', '.join(dialogs)
+
+    return values
