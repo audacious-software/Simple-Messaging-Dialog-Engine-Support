@@ -148,35 +148,39 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
 
     return None
 
-def simple_messaging_export_fields(data_type):
-    if data_type == 'simple_messaging.conversation_transcripts': # or link click export
+def simple_data_export_fields(data_type):
+    if data_type in ('simple_messaging.conversation_transcripts', 'users_scheduling.link_clicks',):
         return [
             'Django Dialog Engine: Active Dialog',
         ]
 
     return []
 
-def simple_messaging_export_field_values(data_type, message, extra_fields): # pylint: disable=invalid-name
+def simple_data_export_field_values(data_type, context, extra_fields): # pylint: disable=invalid-name
     values = {}
 
-    if data_type == 'simple_messaging.conversation_transcripts':
+    if data_type in ('simple_messaging.conversation_transcripts', 'users_scheduling.link_clicks',): # pylint: disable=too-many-nested-blocks
         for extra_field in extra_fields:
             if extra_field == 'Django Dialog Engine: Active Dialog':
-                participant = message.get('raw_recipient', None)
+                participant = context.get('raw_recipient', None)
 
                 if participant is None:
-                    participant = message.get('raw_sender', None)
+                    participant = context.get('raw_sender', None)
 
-                when = message.get('datetime', None)
+                if participant is None:
+                    participant = context.get('participant', None)
 
-                query = Q(started__lte=when) & (Q(finished=None) | Q(finished__gte=when))
+                if participant is not None:
+                    when = context.get('datetime', None)
 
-                dialogs = []
+                    query = Q(started__lte=when) & (Q(finished=None) | Q(finished__gte=when))
 
-                for session in DialogSession.objects.filter(query):
-                    if session.current_destination() == participant:
-                        dialogs.append(session.dialog.script.identifier)
+                    dialogs = []
 
-                values[extra_field] = ', '.join(dialogs)
+                    for session in DialogSession.objects.filter(query):
+                        if session.current_destination() == participant:
+                            dialogs.append(session.dialog.script.identifier)
+
+                    values[extra_field] = ', '.join(dialogs)
 
     return values
