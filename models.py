@@ -372,7 +372,7 @@ class DialogVariableWrapper(UserDict):
         if isinstance(value, dict) is False:
             raise TypeError('"value" parameter must be a dict.')
 
-        super().__init__(value)
+        super(DialogVariableWrapper, self).__init__(value) # pylint: disable=super-with-arguments
 
         self.sender = sender
         self.name = name
