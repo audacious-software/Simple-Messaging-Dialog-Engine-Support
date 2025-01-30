@@ -5,10 +5,14 @@ from __future__ import unicode_literals, print_function
 
 from builtins import str # pylint: disable=redefined-builtin
 
-import collections
 import importlib
 import json
 import traceback
+
+try:
+    from collections import UserDict
+except ImportError:
+    pass
 
 from six import python_2_unicode_compatible
 
@@ -363,7 +367,7 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
-class DialogVariableWrapper(collections.UserDict):
+class DialogVariableWrapper(UserDict):
     def __init__(self, sender, name, value):
         if isinstance(value, dict) is False:
             raise TypeError('"value" parameter must be a dict.')
