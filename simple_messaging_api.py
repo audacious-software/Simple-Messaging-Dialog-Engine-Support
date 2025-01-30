@@ -40,10 +40,12 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
                 template_variables.extend(script.template_variables.all())
 
                 for variable in template_variables:
-                    values = variable.value.strip().splitlines()
+                    variable_value = str(variable.fetch_value())
+
+                    values = variable_value.strip().splitlines()
 
                     if len(values) == 1:
-                        metadata[variable.key] = variable.value
+                        metadata[variable.key] = variable_value
                     else:
                         for raw_value in values:
                             value_tokens = raw_value.split('|')

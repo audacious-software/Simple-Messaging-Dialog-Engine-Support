@@ -96,7 +96,7 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
                                 if (variable.key in session_variables) is False:
                                     session_variables[variable.key] = []
 
-                                session_variables[variable.key].append(variable.value)
+                                session_variables[variable.key].append(str(variable.fetch_value()))
 
                         row = []
 
@@ -140,7 +140,7 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
                 row.append(variable.dialog_key)
                 row.append(variable.date_set.astimezone(here_tz).isoformat())
                 row.append(variable.key)
-                row.append(variable.value)
+                row.append(str(variable.fetch_value()))
 
                 writer.writerow(row)
 

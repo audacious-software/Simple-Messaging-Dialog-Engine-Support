@@ -5,6 +5,7 @@ from __future__ import unicode_literals, print_function
 
 from builtins import str # pylint: disable=redefined-builtin
 
+import collections
 import importlib
 import json
 import traceback
@@ -29,7 +30,7 @@ from django_pglocks import advisory_lock
 from django_dialog_engine.dialog import DialogError, fetch_default_logger
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
-from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
+from simple_messaging.models import IncomingMessage, OutgoingMessage, encrypt_value, decrypt_value
 
 logger = fetch_default_logger() # pylint: disable=invalid-name
 
@@ -97,7 +98,23 @@ class DialogSession(models.Model):
                     pass
 
             if message is not None:
-                variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=message, date_set=timezone.now())
+                last_message = {
+                    'value': message,
+                    'media': []
+                }
+
+                if isinstance(response, IncomingMessage) is False:
+                    for media_file in response.media.all():
+                        last_message['media'].append({
+                            'type': media_file.content_type,
+                            'size': media_file.content_file.size,
+                            'url': '%s%s' % (settings.SITE_URL, media_file.content_file.url),
+                            'identifier': 'simple_messaging.IncomingMessageMedia.%s' % media_file.pk,
+                        })
+
+                variable_value = 'json:%s' % json.dumps(last_message)
+
+                variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=variable_value, date_set=timezone.now())
                 variable.encrypt_sender()
 
             extras.update(self.fetch_latest_variables())
@@ -275,10 +292,7 @@ class DialogSession(models.Model):
 
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
             if variable.current_sender() == current_dest:
-                variables[variable.key] = variable.value
-
-                if isinstance(variables[variable.key], str) and variables[variable.key].startswith('json:'):
-                    variables[variable.key] = json.loads(variables[variable.key][5:])
+                variables[variable.key] = variable.fetch_value()
 
         self.latest_variables = variables
         self.last_variable_update = timezone.now()
@@ -287,6 +301,9 @@ class DialogSession(models.Model):
         return variables
 
     def add_variable(self, key, value, dialog_key=None):
+        if isinstance(value, str) is False:
+            value = 'json:%s' % json.dumps(value)
+
         DialogVariable.objects.create(sender=self.current_destination(), dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
 
     def cancel_sesssion(self):
@@ -309,10 +326,12 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         for variable in template_variables:
             if (variable.key in instance.dialog.metadata) is False:
-                values = variable.value.strip().splitlines()
+                variable_value = str(variable.fetch_value())
+
+                values = variable_value.strip().splitlines()
 
                 if len(values) == 1:
-                    instance.dialog.metadata[variable.key] = variable.value
+                    instance.dialog.metadata[variable.key] = variable_value
                 else:
                     for raw_value in values:
                         value_tokens = raw_value.split('|')
@@ -344,6 +363,19 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
+class DialogVariableWrapper(collections.UserDict):
+    def __init__(self, sender, name, value):
+        if isinstance(value, dict) is False:
+            raise TypeError('"value" parameter must be a dict.')
+
+        super(collections.UserDict, self).__init__(value)
+
+        self.sender = sender
+        self.name = key
+
+    def __str__(self):
+        return self.get('value', 'json:%s' % json.dumps(self))
+
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
@@ -356,11 +388,26 @@ class DialogVariable(models.Model):
 
     lookup_hash = models.CharField(max_length=1024, null=True, blank=True)
 
-    def value_truncated(self):
-        if len(self.value) > 64:
-            return self.value[:64] + '...' # pylint: disable=unsubscriptable-object
+    def fetch_value(self):
+        variable_value = self.value
 
-        return self.value
+        if variable_value.startswith('json:'):
+            variable_value = json.loads(variables[variable.key][5:])
+
+        if isinstance(variable_value, dict) is False:
+            variable_value = {
+                'value': variable_value
+            }
+
+        return DialogVariableWrapper(self.current_sender(), key, variable_value)
+
+    def value_truncated(self):
+        str_value = str(self.fetch_value())
+
+        if len(str_value) > 64:
+            return str_value[:64] + '...' # pylint: disable=unsubscriptable-object
+
+        return str_value
 
     def current_sender(self):
         if self.sender is not None and self.sender.startswith('secret:'):
@@ -386,7 +433,7 @@ class DialogVariable(models.Model):
             self.update_sender(self.sender, force=True)
 
     def __str__(self):
-        return '%s.%s[%s] = %s (%s)' % (self.dialog_key, self.key, self.current_sender(), self.value, self.date_set)
+        return '%s.%s[%s] = %s (%s)' % (self.dialog_key, self.key, self.current_sender(), self.fetch_value(), self.date_set)
 
 @python_2_unicode_compatible
 class DialogTemplateVariable(models.Model):
@@ -394,8 +441,21 @@ class DialogTemplateVariable(models.Model):
     key = models.CharField(max_length=1024)
     value = models.TextField(max_length=4194304)
 
+    def fetch_value(self):
+        variable_value = self.value
+
+        if variable_value.startswith('json:'):
+            variable_value = json.loads(variables[variable.key][5:])
+
+        if isinstance(variable_value, dict) is False:
+            variable_value = {
+                'value': variable_value
+            }
+
+        return DialogVariableWrapper(None, self.key, variable_value)
+
     def __str__(self):
-        return '[%s] %s = %s' % (self.script, self.key, self.value)
+        return '[%s] %s = %s' % (self.script, self.key, self.fetch_value())
 
 @python_2_unicode_compatible
 class DialogAlert(models.Model):
