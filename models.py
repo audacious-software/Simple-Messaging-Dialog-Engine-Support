@@ -368,7 +368,7 @@ class DialogVariableWrapper(collections.UserDict):
         if isinstance(value, dict) is False:
             raise TypeError('"value" parameter must be a dict.')
 
-        super(collections.UserDict, self).__init__(value)
+        super().__init__(value)
 
         self.sender = sender
         self.name = name
