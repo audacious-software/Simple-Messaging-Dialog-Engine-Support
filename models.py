@@ -391,8 +391,8 @@ class DialogVariable(models.Model):
     def fetch_value(self):
         variable_value = self.value
 
-        if variable_value.startswith('json:'):
-            variable_value = json.loads(variable_value[5:])
+        if isinstance(variable_value, str) and variable_value.startswith('json:'):
+            variable_value = json.loads(variable_value[5:]) # pylint: disable=unsubscriptable-object
 
         if isinstance(variable_value, dict) is False:
             variable_value = {
@@ -444,8 +444,8 @@ class DialogTemplateVariable(models.Model):
     def fetch_value(self):
         variable_value = self.value
 
-        if variable_value.startswith('json:'):
-            variable_value = json.loads(variable_value[5:])
+        if isinstance(variable_value, str) and variable_value.startswith('json:'):
+            variable_value = json.loads(variable_value[5:]) # pylint: disable=unsubscriptable-object
 
         if isinstance(variable_value, dict) is False:
             variable_value = {
