@@ -12,7 +12,7 @@ import traceback
 try:
     from collections import UserDict
 except ImportError:
-    pass
+    from UserDict import UserDict
 
 from six import python_2_unicode_compatible
 
