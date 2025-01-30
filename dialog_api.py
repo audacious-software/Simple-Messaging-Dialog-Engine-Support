@@ -1,7 +1,6 @@
 # pylint: disable=no-member, line-too-long
 
 import json
-import traceback
 
 from django.utils import timezone
 

@@ -371,7 +371,7 @@ class DialogVariableWrapper(collections.UserDict):
         super(collections.UserDict, self).__init__(value)
 
         self.sender = sender
-        self.name = key
+        self.name = name
 
     def __str__(self):
         return self.get('value', 'json:%s' % json.dumps(self))
@@ -392,14 +392,14 @@ class DialogVariable(models.Model):
         variable_value = self.value
 
         if variable_value.startswith('json:'):
-            variable_value = json.loads(variables[variable.key][5:])
+            variable_value = json.loads(variable_value[5:])
 
         if isinstance(variable_value, dict) is False:
             variable_value = {
                 'value': variable_value
             }
 
-        return DialogVariableWrapper(self.current_sender(), key, variable_value)
+        return DialogVariableWrapper(self.current_sender(), self.key, variable_value)
 
     def value_truncated(self):
         str_value = str(self.fetch_value())
@@ -445,7 +445,7 @@ class DialogTemplateVariable(models.Model):
         variable_value = self.value
 
         if variable_value.startswith('json:'):
-            variable_value = json.loads(variables[variable.key][5:])
+            variable_value = json.loads(variable_value[5:])
 
         if isinstance(variable_value, dict) is False:
             variable_value = {
