@@ -378,7 +378,12 @@ class DialogVariableWrapper(UserDict):
         self.name = name
 
     def __str__(self):
-        return self.get('value', 'json:%s' % json.dumps(self))
+        value = self.get('value', 'json:%s' % json.dumps(dict(self)))
+
+        if isinstance(value, str):
+            return value
+
+        return 'json:%s' % json.dumps(value)
 
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
