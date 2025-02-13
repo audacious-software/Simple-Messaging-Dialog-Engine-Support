@@ -345,9 +345,11 @@ class DialogSession(models.Model):
         self.last_variable_update = timezone.now()
         self.save()
 
-        variables.update(wrapped_variables)
+        raw_variables = dict(variables)
 
-        return variables
+        raw_variables.update(wrapped_variables)
+
+        return raw_variables
 
     def add_variable(self, key, value, dialog_key=None):
         if isinstance(value, str) is False:
