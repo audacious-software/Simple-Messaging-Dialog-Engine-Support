@@ -7,7 +7,6 @@ from builtins import str # pylint: disable=redefined-builtin
 
 import importlib
 import json
-import logging
 import os
 import tempfile
 import time
@@ -70,7 +69,7 @@ def advisory_lock(lock_name, timeout=None):
 
         time.sleep(0.1)
 
-    with open(file_path, 'a'):     # Create file if does not exist
+    with open(file_path, 'ab'):     # Create file if does not exist
         os.utime(file_path, None)  # Set access/modified times to now
 
     try:
@@ -95,8 +94,6 @@ class DialogSession(models.Model):
     transmission_channel = models.CharField(max_length=256, null=True, blank=True)
 
     def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
-        logger = logging.getLogger(__name__)
-
         if self.dialog is None:
             return
 
@@ -155,7 +152,7 @@ class DialogSession(models.Model):
                                 'url': '%s%s' % (settings.SITE_URL, media_file.content_file.url),
                                 'identifier': 'simple_messaging.IncomingMessageMedia.%s' % media_file.pk,
                             })
-                    except:
+                    except: # pylint: disable=bare-except
                         logger.error(traceback.format_exc())
 
                 variable_value = 'json:%s' % json.dumps(last_message)
