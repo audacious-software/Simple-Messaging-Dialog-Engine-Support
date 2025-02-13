@@ -5,6 +5,7 @@ from __future__ import unicode_literals, print_function
 
 from builtins import str # pylint: disable=redefined-builtin
 
+import errno
 import importlib
 import json
 import os
@@ -77,8 +78,9 @@ def advisory_lock(lock_name, timeout=None):
     finally:
         try:
             os.remove(file_path)
-        except FileNotFoundError:
-            pass
+        except EnvironmentError as error:
+            if error.errno != errno.ENOENT:
+                raise
 
 class DialogSession(models.Model):
     destination = models.CharField(max_length=256)
