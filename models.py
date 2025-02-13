@@ -333,13 +333,19 @@ class DialogSession(models.Model):
 
         current_dest = self.current_destination()
 
+        wrapped_variables = {}
+
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
             if variable.current_sender() == current_dest:
                 variables[variable.key] = dict(variable.fetch_value())
 
+                wrapped_variables[variable.key] = variable.fetch_value()
+
         self.latest_variables = variables
         self.last_variable_update = timezone.now()
         self.save()
+
+        variables.update(wrapped_variables)
 
         return variables
 
