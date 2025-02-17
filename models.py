@@ -6,9 +6,15 @@ from __future__ import unicode_literals, print_function
 from builtins import str # pylint: disable=redefined-builtin
 
 import hashlib
+import errno
 import importlib
 import json
+import os
+import tempfile
+import time
 import traceback
+
+from contextlib import contextmanager
 
 try:
     from collections import UserDict
@@ -16,21 +22,19 @@ except ImportError:
     from UserDict import UserDict
 
 from six import python_2_unicode_compatible
-
 from django.conf import settings
 from django.core.management import call_command
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.template.defaultfilters import slugify
 from django.utils import timezone
 
 try:
     from django.db.models import JSONField
 except ImportError:
     from django.contrib.postgres.fields import JSONField
-
-from django_pglocks import advisory_lock
 
 from django_dialog_engine.dialog import DialogError, fetch_default_logger
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
@@ -44,6 +48,40 @@ try:
 except AttributeError:
     pass
 
+class LockTimeoutError(Exception):
+    pass
+
+@contextmanager
+def advisory_lock(lock_name, timeout=None):
+    start_time = None
+
+    if timeout is not None:
+        start_time = timezone.now()
+
+    host_prefix = slugify(settings.ALLOWED_HOSTS[0])
+
+    file_path = '%s/%s_%s.lock' % (tempfile.gettempdir(), host_prefix, lock_name)
+
+    while os.path.exists(file_path):
+        if start_time is not None:
+            elapsed = timezone.now() - start_time
+
+            if elapsed.total_seconds() > timeout:
+                raise LockTimeoutError('Timeout reached acquiring lock for %s (%f seconds)' % (lock_name, timeout))
+
+        time.sleep(0.1)
+
+    with open(file_path, 'ab'):     # Create file if does not exist
+        os.utime(file_path, None)  # Set access/modified times to now
+
+    try:
+        yield file_path
+    finally:
+        try:
+            os.remove(file_path)
+        except EnvironmentError as error:
+            if error.errno != errno.ENOENT:
+                raise
 
 class DialogSession(models.Model):
     destination = models.CharField(max_length=256)
@@ -120,14 +158,17 @@ class DialogSession(models.Model):
                     'media': []
                 }
 
-                if isinstance(response, IncomingMessage) is False:
-                    for media_file in response.media.all():
-                        last_message['media'].append({
-                            'type': media_file.content_type,
-                            'size': media_file.content_file.size,
-                            'url': '%s%s' % (settings.SITE_URL, media_file.content_file.url),
-                            'identifier': 'simple_messaging.IncomingMessageMedia.%s' % media_file.pk,
-                        })
+                if isinstance(response, IncomingMessage):
+                    try:
+                        for media_file in response.media.all():
+                            last_message['media'].append({
+                                'type': media_file.content_type,
+                                'size': media_file.content_file.size,
+                                'url': '%s%s' % (settings.SITE_URL, media_file.content_file.url),
+                                'identifier': 'simple_messaging.IncomingMessageMedia.%s' % media_file.pk,
+                            })
+                    except: # pylint: disable=bare-except
+                        logger.error(traceback.format_exc())
 
                 variable_value = 'json:%s' % json.dumps(last_message)
 
@@ -320,9 +361,13 @@ class DialogSession(models.Model):
         if self.finished is not None:
             query = query & Q(date_set__lte=self.finished)
 
+        wrapped_variables = {}
+
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
-            if variable.current_sender() == current_destination:
-                variables[variable.key] = variable.fetch_value()
+            if variable.current_sender() == current_dest:
+                wrapped_variables[variable.key] = variable.fetch_value()
+
+                variables[variable.key] = dict(wrapped_variables[variable.key])
 
             if variable.lookup_hash in (None, ''):
                 new_hash_obj = hashlib.sha256()
@@ -335,7 +380,11 @@ class DialogSession(models.Model):
 #         self.last_variable_update = timezone.now()
 #         self.save()
 
-        return variables
+        raw_variables = dict(variables)
+
+        raw_variables.update(wrapped_variables)
+
+        return raw_variables
 
     def add_variable(self, key, value, dialog_key=None):
         if isinstance(value, str) is False:
