@@ -97,8 +97,6 @@ class DialogSession(models.Model):
     transmission_channel = models.CharField(max_length=256, null=True, blank=True)
 
     def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
-        print('process_response[0]: %s' % response)
-
         if self.dialog is None:
             return
 
@@ -106,11 +104,7 @@ class DialogSession(models.Model):
 
         nudge_after = False
 
-        print('process_response[1]: %s' % response)
-
         with advisory_lock(cache_key):
-            print('process_response[1.1]: %s' % response)
-
             message = None
 
             if transmission_extras is None:
@@ -122,8 +116,6 @@ class DialogSession(models.Model):
             else:
                 transmission_extras['message_channel'] = self.transmission_channel
 
-            print('process_response[1.2]: %s' % response)
-
             try:
                 if isinstance(response, str):
                     message = response
@@ -134,8 +126,6 @@ class DialogSession(models.Model):
                     extras = {}
             except: # pylint: disable=bare-except
                 traceback.print_exc()
-
-            print('process_response[1.3]: %s' % message)
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -149,8 +139,6 @@ class DialogSession(models.Model):
                     pass
                 except AttributeError:
                     pass
-
-            print('process_response[1.4]: %s' % message)
 
             if message is not None:
                 last_message = {
@@ -175,18 +163,9 @@ class DialogSession(models.Model):
                 variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=variable_value, date_set=timezone.now())
                 variable.encrypt_sender()
 
-            print('process_response[1.5]: %s -- %s' % (message, extras))
-
-            try:
-                extras.update(self.fetch_latest_variables())
-            except:
-                traceback.print_exc()
-
-            print('process_response[1.5.5]: %s -- %s' % (message, extras))
+            extras.update(self.fetch_latest_variables())
 
             actions = self.dialog.process(message, extras)
-
-            print('process_response[1.6]: %s -- %s' % (response, actions))
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -197,8 +176,6 @@ class DialogSession(models.Model):
                     pass
                 except AttributeError:
                     pass
-
-            print('ACTIONS: %s' % actions)
 
             if actions is not None: # pylint: disable=too-many-nested-blocks
                 self.last_updated = timezone.now()
@@ -364,7 +341,7 @@ class DialogSession(models.Model):
         wrapped_variables = {}
 
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
-            if variable.current_sender() == current_dest:
+            if variable.current_sender() == current_destination:
                 wrapped_variables[variable.key] = variable.fetch_value()
 
                 variables[variable.key] = dict(wrapped_variables[variable.key])
