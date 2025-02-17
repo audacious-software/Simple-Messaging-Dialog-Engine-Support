@@ -174,12 +174,12 @@ def process_incoming_message(incoming_message):
                     'message_channel': message_channel
                 }
 
-                session.process_response(incoming_message.message, transmission_extras=extras)
+                session.process_response(incoming_message, transmission_extras=extras)
 
                 processed = True
 
             if processed is False:
-                session.process_response(incoming_message.message)
+                session.process_response(incoming_message)
 
 def simple_messaging_record_response(post_request): # pylint: disable=invalid-name, unused-argument
     return True

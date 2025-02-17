@@ -5,6 +5,7 @@ from __future__ import unicode_literals, print_function
 
 from builtins import str # pylint: disable=redefined-builtin
 
+import hashlib
 import importlib
 import json
 import traceback
@@ -58,6 +59,8 @@ class DialogSession(models.Model):
     transmission_channel = models.CharField(max_length=256, null=True, blank=True)
 
     def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+        print('process_response[0]: %s' % response)
+
         if self.dialog is None:
             return
 
@@ -65,7 +68,11 @@ class DialogSession(models.Model):
 
         nudge_after = False
 
+        print('process_response[1]: %s' % response)
+
         with advisory_lock(cache_key):
+            print('process_response[1.1]: %s' % response)
+
             message = None
 
             if transmission_extras is None:
@@ -77,6 +84,8 @@ class DialogSession(models.Model):
             else:
                 transmission_extras['message_channel'] = self.transmission_channel
 
+            print('process_response[1.2]: %s' % response)
+
             try:
                 if isinstance(response, str):
                     message = response
@@ -87,6 +96,8 @@ class DialogSession(models.Model):
                     extras = {}
             except: # pylint: disable=bare-except
                 traceback.print_exc()
+
+            print('process_response[1.3]: %s' % message)
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -100,6 +111,8 @@ class DialogSession(models.Model):
                     pass
                 except AttributeError:
                     pass
+
+            print('process_response[1.4]: %s' % message)
 
             if message is not None:
                 last_message = {
@@ -121,9 +134,18 @@ class DialogSession(models.Model):
                 variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=variable_value, date_set=timezone.now())
                 variable.encrypt_sender()
 
-            extras.update(self.fetch_latest_variables())
+            print('process_response[1.5]: %s -- %s' % (message, extras))
+
+            try:
+                extras.update(self.fetch_latest_variables())
+            except:
+                traceback.print_exc()
+
+            print('process_response[1.5.5]: %s -- %s' % (message, extras))
 
             actions = self.dialog.process(message, extras)
+
+            print('process_response[1.6]: %s -- %s' % (response, actions))
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -134,6 +156,8 @@ class DialogSession(models.Model):
                     pass
                 except AttributeError:
                     pass
+
+            print('ACTIONS: %s' % actions)
 
             if actions is not None: # pylint: disable=too-many-nested-blocks
                 self.last_updated = timezone.now()
@@ -276,31 +300,40 @@ class DialogSession(models.Model):
             self.update_destination(self.destination, force=True)
 
     def fetch_latest_variables(self):
-        if self.dialog is None:
-            return self.latest_variables
-
         query = Q(dialog_key=self.dialog.key)
 
-        variables = self.latest_variables
+        variables = {}
+
+        current_destination = self.current_destination()
+
+        query = Q(lookup_hash=None)
+
+        hash_obj = hashlib.sha256()
+        hash_obj.update(current_destination.encode('utf-8'))
+
+        hash_lookup = hash_obj.hexdigest()
+
+        query = query | Q(lookup_hash=hash_lookup)
+
+        query = query & Q(date_set__gte=self.started)
 
         if self.finished is not None:
-            if self.last_variable_update is not None and self.last_variable_update > self.finished:
-                return variables
-
             query = query & Q(date_set__lte=self.finished)
 
-        if self.last_variable_update is not None:
-            query = query & Q(date_set__gte=self.last_variable_update)
-
-        current_dest = self.current_destination()
-
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
-            if variable.current_sender() == current_dest:
+            if variable.current_sender() == current_destination:
                 variables[variable.key] = variable.fetch_value()
 
-        self.latest_variables = variables
-        self.last_variable_update = timezone.now()
-        self.save()
+            if variable.lookup_hash in (None, ''):
+                new_hash_obj = hashlib.sha256()
+                new_hash_obj.update(variable.current_sender().encode('utf-8'))
+
+                variable.lookup_hash = new_hash_obj.hexdigest()
+                variable.save()
+
+#         self.latest_variables = variables
+#         self.last_variable_update = timezone.now()
+#         self.save()
 
         return variables
 
@@ -378,7 +411,12 @@ class DialogVariableWrapper(UserDict):
         self.name = name
 
     def __str__(self):
-        return self.get('value', 'json:%s' % json.dumps(self))
+        value = self.get('value', 'json:%s' % json.dumps(dict(self)))
+
+        if isinstance(value, str):
+            return value
+
+        return 'json:%s' % json.dumps(value)
 
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
@@ -392,7 +430,7 @@ class DialogVariable(models.Model):
 
     lookup_hash = models.CharField(max_length=1024, null=True, blank=True)
 
-    def fetch_value(self):
+    def fetch_value(self, unwrap=False):
         variable_value = self.value
 
         if isinstance(variable_value, str) and variable_value.startswith('json:'):
@@ -402,6 +440,9 @@ class DialogVariable(models.Model):
             variable_value = {
                 'value': variable_value
             }
+
+        if unwrap:
+            return variable_value
 
         return DialogVariableWrapper(self.current_sender(), self.key, variable_value)
 
