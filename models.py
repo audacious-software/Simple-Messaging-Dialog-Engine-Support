@@ -163,6 +163,8 @@ class DialogSession(models.Model):
                 variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=variable_value, date_set=timezone.now())
                 variable.encrypt_sender()
 
+                message = variable.fetch_value()
+
             extras.update(self.fetch_latest_variables())
 
             actions = self.dialog.process(message, extras)
@@ -204,11 +206,16 @@ class DialogSession(models.Model):
                             # Do nothing - pause will conclude in a subsequent call
                             pass
                         elif action['type'] == 'store-value':
+                            to_store = action['value']
+
+                            if isinstance(to_store, UserDict):
+                                to_store = to_store.fetch_value()
+
                             for app in settings.INSTALLED_APPS:
                                 try:
                                     app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-                                    app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], action['value'])
+                                    app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], to_store)
                                 except ImportError:
                                     pass
                                 except AttributeError:
@@ -444,6 +451,9 @@ class DialogVariableWrapper(UserDict):
 
         return 'json:%s' % json.dumps(value)
 
+    def fetch_value(self):
+        return self.get('value', None)
+
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
@@ -468,6 +478,9 @@ class DialogVariable(models.Model):
             }
 
         if unwrap:
+            if isinstance(variable_value, dict):
+                variable_value['__smds_unwrapped'] = True
+
             return variable_value
 
         return DialogVariableWrapper(self.current_sender(), self.key, variable_value)

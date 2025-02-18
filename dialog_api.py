@@ -2,6 +2,11 @@
 
 import json
 
+try:
+    from collections import UserDict
+except ImportError:
+    from UserDict import UserDict
+
 from django.utils import timezone
 
 from .models import DialogVariable
@@ -10,6 +15,10 @@ def store_value(sender, dialog_key, key, value):
     value_obj = {
         'value': value
     }
+
+    if isinstance(value, (UserDict, dict)):
+        if value.get('value', None) is not None:
+            value_obj = value
 
     variable = DialogVariable.objects.create(sender=sender, dialog_key=dialog_key, key=key, value='json:%s' % json.dumps(value_obj), date_set=timezone.now())
     variable.encrypt_sender()
