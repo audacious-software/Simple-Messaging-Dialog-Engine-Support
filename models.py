@@ -8,6 +8,7 @@ from builtins import str # pylint: disable=redefined-builtin
 import hashlib
 import errno
 import importlib
+import logging
 import json
 import os
 import tempfile
@@ -41,12 +42,12 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField
 
-from django_dialog_engine.dialog import DialogError, fetch_default_logger
+from django_dialog_engine.dialog import DialogError
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import IncomingMessage, OutgoingMessage, OutgoingMessageMedia, encrypt_value, decrypt_value
 
-logger = fetch_default_logger() # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
 
 try:
     logger = settings.FETCH_LOGGER() # pylint: disable=invalid-name
