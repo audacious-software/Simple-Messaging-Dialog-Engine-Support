@@ -15,14 +15,19 @@ import time
 import traceback
 
 from contextlib import contextmanager
+from urllib.parse import urlparse
 
 try:
     from collections import UserDict
 except ImportError:
     from UserDict import UserDict
 
+import requests
+
 from six import python_2_unicode_compatible
+
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import models
 from django.db.models import Q
@@ -39,7 +44,7 @@ except ImportError:
 from django_dialog_engine.dialog import DialogError, fetch_default_logger
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
-from simple_messaging.models import IncomingMessage, OutgoingMessage, encrypt_value, decrypt_value
+from simple_messaging.models import IncomingMessage, OutgoingMessage, OutgoingMessageMedia, encrypt_value, decrypt_value
 
 logger = fetch_default_logger() # pylint: disable=invalid-name
 
@@ -200,6 +205,21 @@ class DialogSession(models.Model):
 
                             message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
                             message.encrypt_destination()
+
+                            media_url = action.get('media_url', None)
+
+                            if media_url is not None:
+                                response = requests.get(media_url, timeout=300)
+
+                                parsed = urlparse(media_url)
+
+                                filename = parsed.path.split('/')[-1]
+
+                                media_obj = OutgoingMessageMedia.objects.create(message=message, content_type=response.headers['content-type'])
+
+                                media_obj.content_file.save(filename, ContentFile(response.content))
+
+                                media_obj.save()
 
                             nudge_after = True
                         elif action['type'] == 'pause':
