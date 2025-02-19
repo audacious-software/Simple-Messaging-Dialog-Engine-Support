@@ -47,12 +47,7 @@ from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import IncomingMessage, OutgoingMessage, OutgoingMessageMedia, encrypt_value, decrypt_value
 
-logger = logging.getLogger(__name__)
-
-try:
-    logger = settings.FETCH_LOGGER() # pylint: disable=invalid-name
-except AttributeError:
-    pass
+logger = logging.getLogger(__name__) # pylint: disable=invalid-name
 
 class LockTimeoutError(Exception):
     pass
