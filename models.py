@@ -15,7 +15,6 @@ import time
 import traceback
 
 from contextlib import contextmanager
-from urllib.parse import urlparse
 
 try:
     from collections import UserDict
@@ -25,6 +24,7 @@ except ImportError:
 import requests
 
 from six import python_2_unicode_compatible
+from six.moves import urllib
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -211,7 +211,7 @@ class DialogSession(models.Model):
                             if media_url is not None:
                                 response = requests.get(media_url, timeout=300)
 
-                                parsed = urlparse(media_url)
+                                parsed = urllib.parse.urlparse(media_url)
 
                                 filename = parsed.path.split('/')[-1]
 
