@@ -168,7 +168,7 @@ class DialogSession(models.Model):
 
             extras.update(self.fetch_latest_variables())
 
-            actions = self.dialog.process(message, extras)
+            actions = self.dialog.process(str(message), extras)
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -367,7 +367,9 @@ class DialogSession(models.Model):
             if variable.current_sender() == current_destination:
                 wrapped_variables[variable.key] = variable.fetch_value()
 
-                variables[variable.key] = dict(wrapped_variables[variable.key])
+                # print('variable.key[%s]: %s' % (variable.pk, variable.key))
+
+                # variables[variable.key] = dict(wrapped_variables[variable.key])
 
             if variable.lookup_hash in (None, ''):
                 new_hash_obj = hashlib.sha256()
@@ -449,26 +451,69 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
-class DialogVariableWrapper(UserDict):
+class DialogVariableWrapper():
     def __init__(self, sender, name, value):
         if isinstance(value, dict) is False:
             raise TypeError('"value" parameter must be a dict.')
 
-        super(DialogVariableWrapper, self).__init__(value) # pylint: disable=super-with-arguments
+        super(DialogVariableWrapper, self).__init__() # pylint: disable=super-with-arguments
+
+        self.storage = {}
+
+        self.storage.update(value)
 
         self.sender = sender
         self.name = name
 
     def __str__(self):
-        value = self.get('value', 'json:%s' % json.dumps(dict(self)))
+        value = self.storage.get('value', 'json:%s' % json.dumps(self.storage))
 
         if isinstance(value, str):
             return value
 
         return 'json:%s' % json.dumps(value)
 
+    def __getattribute__(self, name):
+        if name == 'storage':
+            return super(DialogVariableWrapper, self).__getattribute__(name) # pylint: disable=super-with-arguments
+
+        try:
+            value = self.storage.get('value', None)
+
+            if value is not None:
+                return value.__getattribute__(name)
+        except AttributeError:
+            pass
+
+        return super(DialogVariableWrapper, self).__getattribute__(name) # pylint: disable=super-with-arguments
+
+    def __getitem__(self, key, default=None):
+        return self.storage.get(key, default)
+
+    def get(self, key, default=None):
+        return self.storage.get(key, default)
+
+    def __dir__(self):
+        value = self.storage.get('value', None)
+
+        new_dir = dir(value)
+
+        for attr in dir(self.storage):
+            if (attr in new_dir) is False:
+                new_dir.append(attr)
+
+        new_dir.append('sender')
+        new_dir.append('name')
+
+        return new_dir
+
+    def __len__(self):
+        value = self.storage.get('value', None)
+
+        return len(value)
+
     def fetch_value(self):
-        return self.get('value', None)
+        return self.storage.get('value', None)
 
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
