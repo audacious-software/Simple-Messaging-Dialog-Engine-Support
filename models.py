@@ -451,7 +451,7 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
-class DialogVariableWrapper():
+class DialogVariableWrapper(): # pylint: disable=old-style-class, super-on-old-class
     def __init__(self, sender, name, value):
         if isinstance(value, dict) is False:
             raise TypeError('"value" parameter must be a dict.')
