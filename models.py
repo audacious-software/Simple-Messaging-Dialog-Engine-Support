@@ -168,7 +168,12 @@ class DialogSession(models.Model):
 
             extras.update(self.fetch_latest_variables())
 
-            actions = self.dialog.process(str(message), extras)
+            message_str = None
+
+            if message is not None:
+                message_str = str(message)
+
+            actions = self.dialog.process(message_str, extras)
 
             for app in settings.INSTALLED_APPS:
                 try:
