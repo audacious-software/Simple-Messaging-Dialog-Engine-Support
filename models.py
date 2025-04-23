@@ -520,6 +520,21 @@ class DialogVariableWrapper(): # pylint: disable=old-style-class, super-on-old-c
     def fetch_value(self):
         return self.storage.get('value', None)
 
+    def __iter__(self):
+        value = self.storage.get('value', None)
+
+        return value.__iter__()
+
+    def __next__(self):
+        value = self.storage.get('value', None)
+
+        return value.__next__()
+
+    def __contains__(self, item):
+        value = self.storage.get('value', None)
+
+        return value.__contains__(item)
+
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
