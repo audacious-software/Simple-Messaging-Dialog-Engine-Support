@@ -172,6 +172,8 @@ class DialogSession(models.Model):
 
             extras.update(self.fetch_latest_variables())
 
+            print('EXTRAS: %s' % extras)
+
             actions = self.dialog.process(message, extras)
 
             for app in settings.INSTALLED_APPS:
@@ -473,6 +475,17 @@ class DialogVariableWrapper(UserDict):
 
     def fetch_value(self):
         return self.get('value', None)
+
+    def append(self, value):
+        wrapped_value = self.get('value', [])
+
+        if isinstance(value, str):
+            wrapped_value = wrapped_value + value
+
+        if isinstance(value, list):
+            wrapped_value.append(value)
+
+        self['value'] = 'json:%s' % json.dumps(wrapped_value)
 
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
