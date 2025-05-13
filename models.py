@@ -5,9 +5,11 @@ from __future__ import unicode_literals, print_function
 
 from builtins import str # pylint: disable=redefined-builtin
 
+import datetime
 import hashlib
 import errno
 import importlib
+import logging
 import json
 import os
 import tempfile
@@ -41,17 +43,12 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField
 
-from django_dialog_engine.dialog import DialogError, fetch_default_logger
+from django_dialog_engine.dialog import DialogError
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import IncomingMessage, OutgoingMessage, OutgoingMessageMedia, encrypt_value, decrypt_value
 
-logger = fetch_default_logger() # pylint: disable=invalid-name
-
-try:
-    logger = settings.FETCH_LOGGER() # pylint: disable=invalid-name
-except AttributeError:
-    pass
+logger = logging.getLogger(__name__) # pylint: disable=invalid-name
 
 class LockTimeoutError(Exception):
     pass
@@ -172,9 +169,12 @@ class DialogSession(models.Model):
 
             extras.update(self.fetch_latest_variables())
 
-            print('EXTRAS: %s' % extras)
+            message_str = None
 
-            actions = self.dialog.process(message, extras)
+            if message is not None:
+                message_str = str(message)
+
+            actions = self.dialog.process(message_str, extras)
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -189,6 +189,8 @@ class DialogSession(models.Model):
             if actions is not None: # pylint: disable=too-many-nested-blocks
                 self.last_updated = timezone.now()
 
+                actions_start = timezone.now()
+
                 for action in actions: # pylint: disable=unused-variable
                     if 'type' in action:
                         if action['type'] == 'wait-for-input':
@@ -196,6 +198,8 @@ class DialogSession(models.Model):
                             pass
                         elif action['type'] == 'echo':
                             rendered_message = apply_template(action['message'], self.dialog.metadata)
+
+                            delay = action.get('delay', 0)
 
                             # template = Template('{% load simple_messaging_dialog_support %}' + str())
 
@@ -205,7 +209,9 @@ class DialogSession(models.Model):
                                 'dialog_metadata': self.dialog.metadata
                             }
 
-                            message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
+                            when = actions_start + datetime.timedelta(seconds=delay)
+
+                            message = OutgoingMessage.objects.create(destination=self.destination, send_date=when, message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
                             message.encrypt_destination()
 
                             media_url = action.get('media_url', None)
@@ -373,7 +379,9 @@ class DialogSession(models.Model):
             if variable.current_sender() == current_destination:
                 wrapped_variables[variable.key] = variable.fetch_value()
 
-                variables[variable.key] = dict(wrapped_variables[variable.key])
+                # print('variable.key[%s]: %s' % (variable.pk, variable.key))
+
+                # variables[variable.key] = dict(wrapped_variables[variable.key])
 
             if variable.lookup_hash in (None, ''):
                 new_hash_obj = hashlib.sha256()
@@ -455,26 +463,84 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
-class DialogVariableWrapper(UserDict):
+class DialogVariableWrapper(): # pylint: disable=old-style-class, super-on-old-class
     def __init__(self, sender, name, value):
         if isinstance(value, dict) is False:
             raise TypeError('"value" parameter must be a dict.')
 
-        super(DialogVariableWrapper, self).__init__(value) # pylint: disable=super-with-arguments
+        super(DialogVariableWrapper, self).__init__() # pylint: disable=super-with-arguments
+
+        self.storage = {}
+
+        self.storage.update(value)
 
         self.sender = sender
         self.name = name
 
     def __str__(self):
-        value = self.get('value', 'json:%s' % json.dumps(dict(self)))
+        value = self.storage.get('value', 'json:%s' % json.dumps(self.storage))
 
         if isinstance(value, str):
             return value
 
         return 'json:%s' % json.dumps(value)
 
+    def __getattribute__(self, name):
+        if name == 'storage':
+            return super(DialogVariableWrapper, self).__getattribute__(name) # pylint: disable=super-with-arguments
+
+        try:
+            value = self.storage.get('value', None)
+
+            if value is not None:
+                return value.__getattribute__(name)
+        except AttributeError:
+            pass
+
+        return super(DialogVariableWrapper, self).__getattribute__(name) # pylint: disable=super-with-arguments
+
+    def __getitem__(self, key, default=None):
+        return self.storage.get(key, default)
+
+    def get(self, key, default=None):
+        return self.storage.get(key, default)
+
+    def __dir__(self):
+        value = self.storage.get('value', None)
+
+        new_dir = dir(value)
+
+        for attr in dir(self.storage):
+            if (attr in new_dir) is False:
+                new_dir.append(attr)
+
+        new_dir.append('sender')
+        new_dir.append('name')
+
+        return new_dir
+
+    def __len__(self):
+        value = self.storage.get('value', None)
+
+        return len(value)
+
     def fetch_value(self):
-        return self.get('value', None)
+        return self.storage.get('value', None)
+
+    def __iter__(self):
+        value = self.storage.get('value', None)
+
+        return value.__iter__()
+
+    def __next__(self):
+        value = self.storage.get('value', None)
+
+        return value.__next__()
+
+    def __contains__(self, item):
+        value = self.storage.get('value', None)
+
+        return value.__contains__(item)
 
     def append(self, value):
         wrapped_value = self.get('value', [])
