@@ -142,6 +142,8 @@ class DialogSession(models.Model):
                 except AttributeError:
                     pass
 
+            last_message = None
+
             if message is not None:
                 last_message = {
                     'value': message,
@@ -242,6 +244,10 @@ class DialogSession(models.Model):
                             for app in settings.INSTALLED_APPS:
                                 try:
                                     app_dialog_api = importlib.import_module(app + '.dialog_api')
+
+                                    if last_message is not None:
+                                        if to_store == last_message.get('value', None):
+                                            to_store = last_message
 
                                     app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], to_store)
                                 except ImportError:

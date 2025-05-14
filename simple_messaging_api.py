@@ -3,6 +3,7 @@
 import json
 import traceback
 
+from django.db.models import Q
 from django.utils import timezone
 
 from django_dialog_engine.models import Dialog, DialogScript
@@ -141,13 +142,12 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
             metadata = {
                 'error': 'Unable to create dialog session.',
-                'traceback': traceback.format_exc()
+                'traceback': traceback.format_exc().splitlines()
             }
 
             return metadata
 
     return None
-
 
 def process_incoming_message(incoming_message):
     sender = incoming_message.current_sender()
@@ -170,11 +170,15 @@ def process_incoming_message(incoming_message):
 
         if channel is not None:
             message_channel = channel.identifier
-
     except ImportError:
         pass
 
-    for session in DialogSession.objects.filter(finished=None, transmission_channel=message_channel):
+    query = Q(transmission_channel=message_channel)
+
+    if message_channel is None:
+        query = query | Q(transmission_channel='simple_messaging_ui_default')
+
+    for session in DialogSession.objects.filter(finished=None).filter(query):
         if session.current_destination() == sender:
             processed = False
 
