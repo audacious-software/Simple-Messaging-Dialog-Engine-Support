@@ -24,7 +24,7 @@ class Command(BaseCommand):
         for session in DialogSession.objects.filter(finished=None):
             try:
                 session.process_response(None, None, send_messages=False)
-            except:
+            except: # pylint: disable=bare-except
                 logging.error('Error encountered with session %s:', session.pk)
                 logging.error(traceback.format_exc())
 
