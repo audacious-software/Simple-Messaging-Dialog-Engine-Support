@@ -8,14 +8,14 @@ bandit==1.7.10; python_version == '3.8'
 bandit==1.8.3; python_version >= '3.9'
 Django==1.11.29; python_version < '3.0'
 Django==3.2.25; python_version >= '3.0' and python_version <= '3.7'
-Django==4.2.21; python_version >= '3.8'
+Django==4.2.22; python_version >= '3.8'
 django-pglocks==1.0.4
 future==1.0.0
 jsonpath-ng==1.7.0
 lockfile==0.12.2
 lxml==5.0.1; python_version < '3.0'
 lxml==5.4.0; python_version >= '3.0'
-phonenumbers==9.0.6
+phonenumbers==9.0.7
 psycopg2-binary==2.8.6; python_version < '3.0'
 psycopg2-binary==2.9.8; python_version >= '3.0' and python_version < '3.7'
 psycopg2-binary==2.9.9; python_version == '3.7'
