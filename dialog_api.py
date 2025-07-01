@@ -9,6 +9,8 @@ except ImportError:
 
 from django.utils import timezone
 
+from simple_messaging.models import OutgoingMessage
+
 from .models import DialogVariable
 
 def store_value(sender, dialog_key, key, value):
@@ -155,3 +157,11 @@ def dialog_builder_cards():
     return [
         ('Start New Session', 'start-new-session',),
     ]
+
+def launch_dialog_script(identifier, destination):
+    outgoing = OutgoingMessage.objects.create(destination=destination, send_date=timezone.now(), message='dialog:%s' % identifier)
+
+    outgoing.encrypt_destination()
+    outgoing.encrypt_message()
+
+    return True
