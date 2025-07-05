@@ -169,7 +169,7 @@ def launch_dialog_script(identifier, destination, dialog_options):
     transmission_metadata = {}
 
     try:
-        from simple_messaging_switchboard import Channel
+        from simple_messaging_switchboard import Channel # pylint: disable=import-outside-toplevel
 
         channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
 
