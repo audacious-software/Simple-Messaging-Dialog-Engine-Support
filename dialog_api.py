@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from simple_messaging.models import OutgoingMessage
 
-from .models import DialogVariable
+from .models import DialogVariable, DialogSession
 
 def store_value(sender, dialog_key, key, value):
     value_obj = {
@@ -158,8 +158,34 @@ def dialog_builder_cards():
         ('Start New Session', 'start-new-session',),
     ]
 
-def launch_dialog_script(identifier, destination):
-    outgoing = OutgoingMessage.objects.create(destination=destination, send_date=timezone.now(), message='dialog:%s' % identifier)
+def launch_dialog_script(identifier, destination, dialog_options):
+    for session in DialogSession.objects.filter(finished=None):
+        if session.current_destination() == destination:
+            session.finished = timezone.now()
+            session.save()
+
+            session.dialog.finish('user_cancelled')
+
+    transmission_metadata = {}
+
+    try:
+        from simple_messaging_switchboard import Channel
+
+        channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
+
+        channel_name = None
+
+        if channel is not None:
+            channel_name = channel.identifier
+
+            transmission_metadata['message_channel'] = channel_name
+    except ImportError:
+        pass
+
+    transmission_str = json.dumps(transmission_metadata, indent=2)
+
+    outgoing = OutgoingMessage.objects.create(destination=destination, send_date=timezone.now(), message='dialog:%s' % identifier, transmission_metadata=transmission_str)
+    outgoing.message_metadata = json.dumps(dialog_options, indent=2)
 
     outgoing.encrypt_destination()
     outgoing.encrypt_message()
