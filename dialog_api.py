@@ -1,14 +1,28 @@
 # pylint: disable=no-member, line-too-long
 
 import json
-import traceback
+
+try:
+    from collections import UserDict
+except ImportError:
+    from UserDict import UserDict
 
 from django.utils import timezone
 
-from .models import DialogVariable
+from simple_messaging.models import OutgoingMessage
+
+from .models import DialogVariable, DialogSession
 
 def store_value(sender, dialog_key, key, value):
-    variable = DialogVariable.objects.create(sender=sender, dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
+    value_obj = {
+        'value': value
+    }
+
+    if isinstance(value, (UserDict, dict)):
+        if value.get('value', None) is not None:
+            value_obj = value
+
+    variable = DialogVariable.objects.create(sender=sender, dialog_key=dialog_key, key=key, value='json:%s' % json.dumps(value_obj), date_set=timezone.now())
     variable.encrypt_sender()
 
 def update_value(sender, dialog_key, key, value, operation, replacement): # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
@@ -22,114 +36,79 @@ def update_value(sender, dialog_key, key, value, operation, replacement): # pyli
                 break
 
     if operation == 'clear-list':
-        store_value(sender, dialog_key, key, 'json:[]')
+        store_value(sender, dialog_key, key, [])
     elif operation == 'set':
-        store_value(sender, dialog_key, key, 'json:%s' % json.dumps(value))
+        store_value(sender, dialog_key, key, value)
     elif operation == 'append-list':
-        last_value = 'json:[]'
+        last_value = []
 
         if last_variable is not None:
-            last_value = last_variable.value
+            last_value = last_variable.fetch_value().get('value', [])
 
-        parsed = []
+        if isinstance(last_value, list) is False:
+            last_value = [last_value]
 
-        try:
-            parsed = json.loads(last_value[5:])
-        except json.JSONDecodeError:
-            traceback.print_exc() # pass
+        last_value.append(value)
 
-        if isinstance(parsed, list) is False:
-            parsed = [parsed]
-
-        parsed.append(value)
-
-        store_value(sender, dialog_key, key, 'json:%s' % json.dumps(parsed))
+        store_value(sender, dialog_key, key, last_value)
     elif operation == 'prepend-list':
-        last_value = 'json:[]'
+        last_value = []
 
         if last_variable is not None:
-            last_value = last_variable.value
+            last_value = last_variable.fetch_value().get('value', [])
 
-        parsed = []
+        if isinstance(last_value, list) is False:
+            last_value = [last_value]
 
-        try:
-            parsed = json.loads(last_value[5:])
-        except json.JSONDecodeError:
-            traceback.print_exc() # pass
+        last_value.insert(0, value)
 
-        if isinstance(parsed, list) is False:
-            parsed = [parsed]
-
-        parsed.insert(0, value)
-
-        store_value(sender, dialog_key, key, 'json:%s' % json.dumps(parsed))
+        store_value(sender, dialog_key, key, last_value)
     elif operation == 'remove':
-        last_value = 'json:[]'
+        last_value = []
 
         if last_variable is not None:
-            last_value = last_variable.value
-
-        parsed = []
-
-        try:
-            parsed = json.loads(last_value[5:])
-        except json.JSONDecodeError:
-            traceback.print_exc() # pass
+            last_value = last_variable.fetch_value().get('value', [])
 
         updated = False
 
-        if isinstance(parsed, str):
-            parsed = parsed.replace(value, '')
+        if isinstance(last_value, str):
+            last_value = last_value.replace(value, '')
 
             updated = True
-        elif isinstance(parsed, list):
-            parsed = [item for item in parsed if item != value]
+        elif isinstance(last_value, list):
+            last_value = [item for item in last_value if item != value]
 
             updated = True
 
         if updated:
-            store_value(sender, dialog_key, key, 'json:%s' % json.dumps(parsed))
+            store_value(sender, dialog_key, key, last_value)
     elif operation == 'replace':
-        last_value = 'json:[]'
+        last_value = []
 
         if last_variable is not None:
-            last_value = last_variable.value
-
-        parsed = []
-
-        try:
-            parsed = json.loads(last_value[5:])
-        except json.JSONDecodeError:
-            traceback.print_exc() # pass
+            last_value = last_variable.fetch_value().get('value', [])
 
         updated = False
 
-        if isinstance(parsed, str):
-            parsed = parsed.replace(value, replacement)
+        if isinstance(last_value, str):
+            last_value = last_value.replace(value, replacement)
 
             updated = True
-        elif isinstance(parsed, list):
-            while value in parsed:
-                value_index = parsed.index(value)
+        elif isinstance(last_value, list):
+            while value in last_value:
+                value_index = last_value.index(value)
 
-                parsed[value_index] = replacement
+                last_value[value_index] = replacement
 
             updated = True
 
         if updated:
-            store_value(sender, dialog_key, key, 'json:%s' % json.dumps(parsed))
+            store_value(sender, dialog_key, key, last_value)
     elif operation == 'increment':
-        last_value = 'json:[]'
+        last_value = []
 
         if last_variable is not None:
-            last_value = last_variable.value
-
-        parsed = []
-
-        try:
-            parsed = json.loads(last_value[5:])
-        except json.JSONDecodeError:
-            traceback.print_exc() # pass
+            last_value = last_variable.fetch_value().get('value', [])
 
         increment_value = 0
 
@@ -143,13 +122,13 @@ def update_value(sender, dialog_key, key, value, operation, replacement): # pyli
 
         updated = False
 
-        if isinstance(parsed, (int, float)):
-            parsed = parsed + increment_value
+        if isinstance(last_value, (int, float)):
+            last_value = last_value + increment_value
 
             updated = True
-        elif isinstance(parsed, list):
-            for item_index in range(0, len(parsed)): # pylint: disable=consider-using-enumerate
-                item = parsed[item_index]
+        elif isinstance(last_value, list):
+            for item_index in range(0, len(last_value)): # pylint: disable=consider-using-enumerate
+                item = last_value[item_index]
 
                 try:
                     float_item = float(item)
@@ -164,12 +143,12 @@ def update_value(sender, dialog_key, key, value, operation, replacement): # pyli
                     except ValueError:
                         pass
 
-                parsed[item_index] = item
+                last_value[item_index] = item
 
             updated = True
 
         if updated:
-            store_value(sender, dialog_key, key, 'json:%s' % json.dumps(parsed))
+            store_value(sender, dialog_key, key, last_value)
 
 def fetch_destination_variables(destination): # pylint: disable=unused-argument
     return None
@@ -178,3 +157,37 @@ def dialog_builder_cards():
     return [
         ('Start New Session', 'start-new-session',),
     ]
+
+def launch_dialog_script(identifier, destination, dialog_options):
+    for session in DialogSession.objects.filter(finished=None):
+        if session.current_destination() == destination:
+            session.finished = timezone.now()
+            session.save()
+
+            session.dialog.finish('user_cancelled')
+
+    transmission_metadata = {}
+
+    try:
+        from simple_messaging_switchboard import Channel # pylint: disable=import-outside-toplevel
+
+        channel = Channel.objects.filter(is_enabled=True, is_default=True).first()
+
+        channel_name = None
+
+        if channel is not None:
+            channel_name = channel.identifier
+
+            transmission_metadata['message_channel'] = channel_name
+    except ImportError:
+        pass
+
+    transmission_str = json.dumps(transmission_metadata, indent=2)
+
+    outgoing = OutgoingMessage.objects.create(destination=destination, send_date=timezone.now(), message='dialog:%s' % identifier, transmission_metadata=transmission_str)
+    outgoing.message_metadata = json.dumps(dialog_options, indent=2)
+
+    outgoing.encrypt_destination()
+    outgoing.encrypt_message()
+
+    return True

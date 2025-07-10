@@ -5,18 +5,37 @@ from __future__ import unicode_literals, print_function
 
 from builtins import str # pylint: disable=redefined-builtin
 
+import datetime
+import hashlib
+import errno
 import importlib
+import logging
 import json
+import os
+import tempfile
+import time
 import traceback
 
+from contextlib import contextmanager
+
+try:
+    from collections import UserDict
+except ImportError:
+    from UserDict import UserDict
+
+import requests
+
 from six import python_2_unicode_compatible
+from six.moves import urllib
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.template.defaultfilters import slugify
 from django.utils import timezone
 
 try:
@@ -24,20 +43,47 @@ try:
 except ImportError:
     from django.contrib.postgres.fields import JSONField
 
-from django_pglocks import advisory_lock
-
-from django_dialog_engine.dialog import DialogError, fetch_default_logger
+from django_dialog_engine.dialog import DialogError
 from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
-from simple_messaging.models import OutgoingMessage, encrypt_value, decrypt_value
+from simple_messaging.models import IncomingMessage, OutgoingMessage, OutgoingMessageMedia, encrypt_value, decrypt_value
 
-logger = fetch_default_logger() # pylint: disable=invalid-name
+logger = logging.getLogger(__name__) # pylint: disable=invalid-name
 
-try:
-    logger = settings.FETCH_LOGGER() # pylint: disable=invalid-name
-except AttributeError:
+class LockTimeoutError(Exception):
     pass
 
+@contextmanager
+def advisory_lock(lock_name, timeout=None):
+    start_time = None
+
+    if timeout is not None:
+        start_time = timezone.now()
+
+    host_prefix = slugify(settings.ALLOWED_HOSTS[0])
+
+    file_path = '%s/%s_%s.lock' % (tempfile.gettempdir(), host_prefix, lock_name)
+
+    while os.path.exists(file_path):
+        if start_time is not None:
+            elapsed = timezone.now() - start_time
+
+            if elapsed.total_seconds() > timeout:
+                raise LockTimeoutError('Timeout reached acquiring lock for %s (%f seconds)' % (lock_name, timeout))
+
+        time.sleep(0.1)
+
+    with open(file_path, 'ab'):     # Create file if does not exist
+        os.utime(file_path, None)  # Set access/modified times to now
+
+    try:
+        yield file_path
+    finally:
+        try:
+            os.remove(file_path)
+        except EnvironmentError as error:
+            if error.errno != errno.ENOENT:
+                raise
 
 class DialogSession(models.Model):
     destination = models.CharField(max_length=256)
@@ -96,13 +142,41 @@ class DialogSession(models.Model):
                 except AttributeError:
                     pass
 
+            last_message = None
+
             if message is not None:
-                variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=message, date_set=timezone.now())
+                last_message = {
+                    'value': message,
+                    'media': []
+                }
+
+                if isinstance(response, IncomingMessage):
+                    try:
+                        for media_file in response.media.all():
+                            last_message['media'].append({
+                                'type': media_file.content_type,
+                                'size': media_file.content_file.size,
+                                'url': '%s%s' % (settings.SITE_URL, media_file.content_file.url),
+                                'identifier': 'simple_messaging.IncomingMessageMedia.%s' % media_file.pk,
+                            })
+                    except: # pylint: disable=bare-except
+                        logger.error(traceback.format_exc())
+
+                variable_value = 'json:%s' % json.dumps(last_message)
+
+                variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=variable_value, date_set=timezone.now())
                 variable.encrypt_sender()
+
+                message = variable.fetch_value()
 
             extras.update(self.fetch_latest_variables())
 
-            actions = self.dialog.process(message, extras)
+            message_str = None
+
+            if message is not None:
+                message_str = str(message)
+
+            actions = self.dialog.process(message_str, extras)
 
             for app in settings.INSTALLED_APPS:
                 try:
@@ -117,6 +191,8 @@ class DialogSession(models.Model):
             if actions is not None: # pylint: disable=too-many-nested-blocks
                 self.last_updated = timezone.now()
 
+                actions_start = timezone.now()
+
                 for action in actions: # pylint: disable=unused-variable
                     if 'type' in action:
                         if action['type'] == 'wait-for-input':
@@ -124,6 +200,8 @@ class DialogSession(models.Model):
                             pass
                         elif action['type'] == 'echo':
                             rendered_message = apply_template(action['message'], self.dialog.metadata)
+
+                            delay = action.get('delay', 0)
 
                             # template = Template('{% load simple_messaging_dialog_support %}' + str())
 
@@ -133,19 +211,45 @@ class DialogSession(models.Model):
                                 'dialog_metadata': self.dialog.metadata
                             }
 
-                            message = OutgoingMessage.objects.create(destination=self.destination, send_date=timezone.now(), message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
+                            when = actions_start + datetime.timedelta(seconds=delay)
+
+                            message = OutgoingMessage.objects.create(destination=self.destination, send_date=when, message=rendered_message, message_metadata=json.dumps(message_metadata, indent=2), transmission_metadata=json.dumps(transmission_extras, indent=2))
                             message.encrypt_destination()
+
+                            media_url = action.get('media_url', None)
+
+                            if media_url is not None:
+                                response = requests.get(media_url, timeout=300)
+
+                                parsed = urllib.parse.urlparse(media_url)
+
+                                filename = parsed.path.split('/')[-1]
+
+                                media_obj = OutgoingMessageMedia.objects.create(message=message, content_type=response.headers['content-type'])
+
+                                media_obj.content_file.save(filename, ContentFile(response.content))
+
+                                media_obj.save()
 
                             nudge_after = True
                         elif action['type'] == 'pause':
                             # Do nothing - pause will conclude in a subsequent call
                             pass
                         elif action['type'] == 'store-value':
+                            to_store = action['value']
+
+                            if isinstance(to_store, UserDict):
+                                to_store = to_store.fetch_value()
+
                             for app in settings.INSTALLED_APPS:
                                 try:
                                     app_dialog_api = importlib.import_module(app + '.dialog_api')
 
-                                    app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], action['value'])
+                                    if last_message is not None:
+                                        if to_store == last_message.get('value', None):
+                                            to_store = last_message
+
+                                    app_dialog_api.store_value(self.current_destination(), self.dialog.key, action['key'], to_store)
                                 except ImportError:
                                     pass
                                 except AttributeError:
@@ -255,38 +359,57 @@ class DialogSession(models.Model):
             self.update_destination(self.destination, force=True)
 
     def fetch_latest_variables(self):
-        if self.dialog is None:
-            return self.latest_variables
-
         query = Q(dialog_key=self.dialog.key)
 
-        variables = self.latest_variables
+        variables = {}
+
+        current_destination = self.current_destination()
+
+        query = Q(lookup_hash=None)
+
+        hash_obj = hashlib.sha256()
+        hash_obj.update(current_destination.encode('utf-8'))
+
+        hash_lookup = hash_obj.hexdigest()
+
+        query = query | Q(lookup_hash=hash_lookup)
+
+        query = query & Q(date_set__gte=self.started)
 
         if self.finished is not None:
-            if self.last_variable_update is not None and self.last_variable_update > self.finished:
-                return variables
-
             query = query & Q(date_set__lte=self.finished)
 
-        if self.last_variable_update is not None:
-            query = query & Q(date_set__gte=self.last_variable_update)
-
-        current_dest = self.current_destination()
+        wrapped_variables = {}
 
         for variable in DialogVariable.objects.filter(query).order_by('date_set'):
-            if variable.current_sender() == current_dest:
-                variables[variable.key] = variable.value
+            if variable.current_sender() == current_destination:
+                wrapped_variables[variable.key] = variable.fetch_value()
 
-                if isinstance(variables[variable.key], str) and variables[variable.key].startswith('json:'):
-                    variables[variable.key] = json.loads(variables[variable.key][5:])
+                # print('variable.key[%s]: %s' % (variable.pk, variable.key))
 
-        self.latest_variables = variables
-        self.last_variable_update = timezone.now()
-        self.save()
+                # variables[variable.key] = dict(wrapped_variables[variable.key])
 
-        return variables
+            if variable.lookup_hash in (None, ''):
+                new_hash_obj = hashlib.sha256()
+                new_hash_obj.update(variable.current_sender().encode('utf-8'))
+
+                variable.lookup_hash = new_hash_obj.hexdigest()
+                variable.save()
+
+#         self.latest_variables = variables
+#         self.last_variable_update = timezone.now()
+#         self.save()
+
+        raw_variables = dict(variables)
+
+        raw_variables.update(wrapped_variables)
+
+        return raw_variables
 
     def add_variable(self, key, value, dialog_key=None):
+        if isinstance(value, str) is False:
+            value = 'json:%s' % json.dumps(value)
+
         DialogVariable.objects.create(sender=self.current_destination(), dialog_key=dialog_key, key=key, value=value, date_set=timezone.now())
 
     def cancel_sesssion(self):
@@ -309,10 +432,12 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         for variable in template_variables:
             if (variable.key in instance.dialog.metadata) is False:
-                values = variable.value.strip().splitlines()
+                variable_value = str(variable.fetch_value())
+
+                values = variable_value.strip().splitlines()
 
                 if len(values) == 1:
-                    instance.dialog.metadata[variable.key] = variable.value
+                    instance.dialog.metadata[variable.key] = variable_value
                 else:
                     for raw_value in values:
                         value_tokens = raw_value.split('|')
@@ -344,6 +469,96 @@ def update_dialog_variables(sender, instance, created, raw, using, update_fields
 
         instance.dialog.save()
 
+class DialogVariableWrapper(): # pylint: disable=old-style-class, super-on-old-class
+    def __init__(self, sender, name, value):
+        if isinstance(value, dict) is False:
+            raise TypeError('"value" parameter must be a dict.')
+
+        super(DialogVariableWrapper, self).__init__() # pylint: disable=super-with-arguments
+
+        self.storage = {}
+
+        self.storage.update(value)
+
+        self.sender = sender
+        self.name = name
+
+    def __str__(self):
+        value = self.storage.get('value', 'json:%s' % json.dumps(self.storage))
+
+        if isinstance(value, str):
+            return value
+
+        return 'json:%s' % json.dumps(value)
+
+    def __getattribute__(self, name):
+        if name == 'storage':
+            return super(DialogVariableWrapper, self).__getattribute__(name) # pylint: disable=super-with-arguments
+
+        try:
+            value = self.storage.get('value', None)
+
+            if value is not None:
+                return value.__getattribute__(name)
+        except AttributeError:
+            pass
+
+        return super(DialogVariableWrapper, self).__getattribute__(name) # pylint: disable=super-with-arguments
+
+    def __getitem__(self, key, default=None):
+        return self.storage.get(key, default)
+
+    def get(self, key, default=None):
+        return self.storage.get(key, default)
+
+    def __dir__(self):
+        value = self.storage.get('value', None)
+
+        new_dir = dir(value)
+
+        for attr in dir(self.storage):
+            if (attr in new_dir) is False:
+                new_dir.append(attr)
+
+        new_dir.append('sender')
+        new_dir.append('name')
+
+        return new_dir
+
+    def __len__(self):
+        value = self.storage.get('value', None)
+
+        return len(value)
+
+    def fetch_value(self):
+        return self.storage.get('value', None)
+
+    def __iter__(self):
+        value = self.storage.get('value', None)
+
+        return value.__iter__()
+
+    def __next__(self):
+        value = self.storage.get('value', None)
+
+        return value.__next__()
+
+    def __contains__(self, item):
+        value = self.storage.get('value', None)
+
+        return value.__contains__(item)
+
+    def append(self, value):
+        wrapped_value = self.get('value', [])
+
+        if isinstance(value, str):
+            wrapped_value = wrapped_value + value
+
+        if isinstance(value, list):
+            wrapped_value.append(value)
+
+        self['value'] = 'json:%s' % json.dumps(wrapped_value)
+
 @python_2_unicode_compatible
 class DialogVariable(models.Model):
     sender = models.CharField(max_length=256)
@@ -356,11 +571,32 @@ class DialogVariable(models.Model):
 
     lookup_hash = models.CharField(max_length=1024, null=True, blank=True)
 
-    def value_truncated(self):
-        if len(self.value) > 64:
-            return self.value[:64] + '...' # pylint: disable=unsubscriptable-object
+    def fetch_value(self, unwrap=False):
+        variable_value = self.value
 
-        return self.value
+        if isinstance(variable_value, str) and variable_value.startswith('json:'):
+            variable_value = json.loads(variable_value[5:]) # pylint: disable=unsubscriptable-object
+
+        if isinstance(variable_value, dict) is False:
+            variable_value = {
+                'value': variable_value
+            }
+
+        if unwrap:
+            if isinstance(variable_value, dict):
+                variable_value['__smds_unwrapped'] = True
+
+            return variable_value
+
+        return DialogVariableWrapper(self.current_sender(), self.key, variable_value)
+
+    def value_truncated(self):
+        str_value = str(self.fetch_value())
+
+        if len(str_value) > 64:
+            return str_value[:64] + '...' # pylint: disable=unsubscriptable-object
+
+        return str_value
 
     def current_sender(self):
         if self.sender is not None and self.sender.startswith('secret:'):
@@ -386,7 +622,7 @@ class DialogVariable(models.Model):
             self.update_sender(self.sender, force=True)
 
     def __str__(self):
-        return '%s.%s[%s] = %s (%s)' % (self.dialog_key, self.key, self.current_sender(), self.value, self.date_set)
+        return '%s.%s[%s] = %s (%s)' % (self.dialog_key, self.key, self.current_sender(), self.fetch_value(), self.date_set)
 
 @python_2_unicode_compatible
 class DialogTemplateVariable(models.Model):
@@ -394,8 +630,21 @@ class DialogTemplateVariable(models.Model):
     key = models.CharField(max_length=1024)
     value = models.TextField(max_length=4194304)
 
+    def fetch_value(self):
+        variable_value = self.value
+
+        if isinstance(variable_value, str) and variable_value.startswith('json:'):
+            variable_value = json.loads(variable_value[5:]) # pylint: disable=unsubscriptable-object
+
+        if isinstance(variable_value, dict) is False:
+            variable_value = {
+                'value': variable_value
+            }
+
+        return DialogVariableWrapper(None, self.key, variable_value)
+
     def __str__(self):
-        return '[%s] %s = %s' % (self.script, self.key, self.value)
+        return '[%s] %s = %s' % (self.script, self.key, self.fetch_value())
 
 @python_2_unicode_compatible
 class DialogAlert(models.Model):

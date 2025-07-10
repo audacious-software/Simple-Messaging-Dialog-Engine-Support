@@ -2,7 +2,7 @@
 
 import json
 
-from django_dialog_engine.dialog.base_node import BaseNode, DialogTransition, fetch_default_logger
+from django_dialog_engine.dialog.base_node import BaseNode, DialogTransition
 
 class StartNewSessionNode(BaseNode):
     @staticmethod
@@ -26,9 +26,6 @@ class StartNewSessionNode(BaseNode):
     def evaluate(self, dialog, response=None, last_transition=None, extras=None, logger=None): # pylint: disable=too-many-arguments
         if extras is None:
             extras = {}
-
-        if logger is None:
-            logger = fetch_default_logger()
 
         transition = DialogTransition(new_state_id=None)
 

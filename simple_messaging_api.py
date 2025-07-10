@@ -3,6 +3,7 @@
 import json
 import traceback
 
+from django.db.models import Q
 from django.utils import timezone
 
 from django_dialog_engine.models import Dialog, DialogScript
@@ -40,10 +41,12 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
                 template_variables.extend(script.template_variables.all())
 
                 for variable in template_variables:
-                    values = variable.value.strip().splitlines()
+                    variable_value = str(variable.fetch_value())
+
+                    values = variable_value.strip().splitlines()
 
                     if len(values) == 1:
-                        metadata[variable.key] = variable.value
+                        metadata[variable.key] = variable_value
                     else:
                         for raw_value in values:
                             value_tokens = raw_value.split('|')
@@ -130,13 +133,21 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
             }
 
             outgoing_message.errored = True
+            outgoing_message.save()
 
             return metadata
         except: # pylint: disable=bare-except
-            traceback.print_exc()
+            outgoing_message.errored = True
+            outgoing_message.save()
+
+            metadata = {
+                'error': 'Unable to create dialog session.',
+                'traceback': traceback.format_exc().splitlines()
+            }
+
+            return metadata
 
     return None
-
 
 def process_incoming_message(incoming_message):
     sender = incoming_message.current_sender()
@@ -159,11 +170,15 @@ def process_incoming_message(incoming_message):
 
         if channel is not None:
             message_channel = channel.identifier
-
     except ImportError:
         pass
 
-    for session in DialogSession.objects.filter(finished=None, transmission_channel=message_channel):
+    query = Q(transmission_channel=message_channel)
+
+    if message_channel is None:
+        query = query | Q(transmission_channel='simple_messaging_ui_default')
+
+    for session in DialogSession.objects.filter(finished=None).filter(query):
         if session.current_destination() == sender:
             processed = False
 
@@ -172,12 +187,12 @@ def process_incoming_message(incoming_message):
                     'message_channel': message_channel
                 }
 
-                session.process_response(incoming_message.message, transmission_extras=extras)
+                session.process_response(incoming_message, transmission_extras=extras)
 
                 processed = True
 
             if processed is False:
-                session.process_response(incoming_message.message)
+                session.process_response(incoming_message)
 
 def simple_messaging_record_response(post_request): # pylint: disable=invalid-name, unused-argument
     return True
