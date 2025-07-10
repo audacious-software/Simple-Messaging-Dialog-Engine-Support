@@ -93,7 +93,7 @@ class DialogSession(models.Model):
     last_updated = models.DateTimeField()
     finished = models.DateTimeField(null=True, blank=True)
 
-    latest_variables = JSONField(default=dict)
+    latest_variables = JSONField(default=dict, blank=True)
     last_variable_update = models.DateTimeField(null=True, blank=True)
 
     transmission_channel = models.CharField(max_length=256, null=True, blank=True)
