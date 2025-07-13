@@ -213,7 +213,7 @@ def compile_data_export(data_type, data_sources, start_time=None, end_time=None,
 
                     hash_lookup = hash_obj.hexdigest()
 
-                    query = query | Q(lookup_hash=hash_lookup)
+                    query = query | Q(lookup_hash=hash_lookup) # pylint: disable=unsupported-binary-operation
 
                 variable_pks = DialogVariable.objects.filter(query).order_by('date_set').values_list('pk', flat=True)
 
