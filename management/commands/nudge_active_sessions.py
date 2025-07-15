@@ -18,8 +18,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         pass
 
-    @handle_lock
     @handle_schedule
+    @handle_lock
     def handle(self, *args, **options):
         for session in DialogSession.objects.filter(finished=None):
             try:
