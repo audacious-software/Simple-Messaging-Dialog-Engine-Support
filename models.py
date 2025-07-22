@@ -48,8 +48,6 @@ from django_dialog_engine.models import Dialog, DialogScript, apply_template
 
 from simple_messaging.models import IncomingMessage, OutgoingMessage, OutgoingMessageMedia, encrypt_value, decrypt_value
 
-logger = logging.getLogger(__name__) # pylint: disable=invalid-name
-
 class LockTimeoutError(Exception):
     pass
 
@@ -98,9 +96,12 @@ class DialogSession(models.Model):
 
     transmission_channel = models.CharField(max_length=256, null=True, blank=True)
 
-    def process_response(self, response, extras=None, transmission_extras=None, send_messages=True): # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+    def process_response(self, response, extras=None, transmission_extras=None, send_messages=True, logger=None): # pylint: disable=too-many-branches, too-many-statements, too-many-locals, too-many-arguments
         if self.dialog is None:
             return
+
+        if logger is None:
+            logger = logging.getLogger()
 
         cache_key = 'dialog_session_processing_%s' % self.pk
 
@@ -176,7 +177,15 @@ class DialogSession(models.Model):
             if message is not None:
                 message_str = str(message)
 
-            actions = self.dialog.process(message_str, extras)
+            extras_updates = {}
+
+            for key, value in extras.items():
+                if isinstance(value, DialogVariableWrapper):
+                    extras_updates[key] = value.fetch_value()
+
+            extras.update(extras_updates)
+
+            actions = self.dialog.process(message_str, extras=extras, logger=logger)
 
             for app in settings.INSTALLED_APPS:
                 try:
