@@ -187,15 +187,23 @@ class DialogSession(models.Model):
 
             actions = self.dialog.process(message_str, extras=extras, logger=logger)
 
+            logger.debug('Updating destination variables...')
+
             for app in settings.INSTALLED_APPS:
                 try:
                     app_dialog_api = importlib.import_module(app + '.dialog_api')
 
                     app_dialog_api.update_destination_variables(self.current_destination(), extras)
+                    logger.debug('Updated destination variables in app : %s', app)
+
                 except ImportError:
                     pass
                 except AttributeError:
                     pass
+
+            logger.debug('Finished updating destination variables.')
+
+            logger.debug('Session procesing dialog actions: %s', actions)
 
             if actions is not None: # pylint: disable=too-many-nested-blocks
                 self.last_updated = timezone.now()
@@ -203,6 +211,8 @@ class DialogSession(models.Model):
                 actions_start = timezone.now()
 
                 for action in actions: # pylint: disable=unused-variable
+                    logger.debug('Session processing action: %s', action)
+
                     if 'type' in action:
                         if action['type'] == 'wait-for-input':
                             # Do nothing - input will come in via HTTP views...
@@ -331,6 +341,8 @@ class DialogSession(models.Model):
                     else:
                         raise DialogError('Unknown action: %s' % json.dumps(action))
 
+                    logger.debug('Session processed action: %s', action)
+
             if self.dialog.finished is not None:
                 self.finished = self.dialog.finished
 
@@ -338,11 +350,21 @@ class DialogSession(models.Model):
 
             self.save()
 
+            logger.debug('Finished dialog? %s', self.finished)
+
             if send_messages:
                 call_command('simple_messaging_send_pending_messages', _qs_context=False)
 
+        logger.debug('Needs extra nudge? %s', nudge_after)
+
         if nudge_after:
+            logger.debug('Giving extra nudge...')
+
             self.process_response(None, extras=extras, transmission_extras=transmission_extras, send_messages=send_messages)
+
+            logger.debug('Extra nudge complete.')
+
+        logger.debug('Session response finished processing.')
 
     def current_destination(self):
         if self.destination is not None and self.destination.startswith('secret:'):
