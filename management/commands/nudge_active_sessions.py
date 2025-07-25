@@ -23,25 +23,28 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         exception = None
 
-        logger = options.get('_logger', None)
-
-        if logger is None:
-            logger = logging.getLogger(__name__)
-
-        for session in DialogSession.objects.filter(finished=None):
-            logger.info('Nudging session: %s', session)
+        for session in DialogSession.objects.filter(finished=None).order_by('-pk'):
+            logging.info('Nudging session: %s', session)
 
             try:
-                session.process_response(None, None, send_messages=False, logger=logger)
+                session.process_response(None, None, send_messages=False, logger=logging.getLogger())
             except Exception as exc: # pylint: disable=bare-except, broad-exception-caught
-                logger.error('Error encountered with session %s:', session.pk)
-                logger.error(traceback.format_exc())
+                logging.error('Error encountered with session %s:', session.pk)
+                logging.error(traceback.format_exc())
 
                 exception = exc
 
-        logger.debug('-' * 72)
+        logging.info('Open sessions nudged.')
 
-        call_command('simple_messaging_send_pending_messages')
+        try:
+            call_command('simple_messaging_send_pending_messages', '-v', '%s' % options.get('verbosity', -1))
+        except:
+            logging.error('Error encountered with command %s:', 'simple_messaging_send_pending_messages')
+            logging.error(traceback.format_exc())
+
+        logging.info('Wrapping up nudging. Exception? %s', exception)
 
         if exception is not None:
             raise exception
+
+        logging.info('Nudge all done.')
