@@ -1,4 +1,4 @@
-# pylint: disable=no-member
+# pylint: disable=no-member, line-too-long
 
 import logging
 import traceback
@@ -38,7 +38,7 @@ class Command(BaseCommand):
 
         try:
             call_command('simple_messaging_send_pending_messages', '-v', '%s' % options.get('verbosity', -1))
-        except:
+        except: # pylint: disable=bare-except
             logging.error('Error encountered with command %s:', 'simple_messaging_send_pending_messages')
             logging.error(traceback.format_exc())
 
