@@ -36,7 +36,7 @@ def dashboard_template(signal_name):
 
     return None
 
-def update_dashboard_signal_value(signal_name):
+def update_dashboard_signal_value(signal_name): # pylint: disable=too-many-branches
     try:
         from simple_dashboard.models import DashboardSignal
 
