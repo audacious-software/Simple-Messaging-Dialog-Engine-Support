@@ -152,7 +152,7 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
     return None
 
-def process_incoming_message(incoming_message): # pylint: disable=too-many-locals, too-many-branches
+def process_incoming_message(incoming_message): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     sender = incoming_message.current_sender()
 
     transmission_metadata = {}
