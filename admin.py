@@ -4,7 +4,7 @@ from django.contrib import admin
 
 from django.conf import settings
 
-from .models import DialogSession, DialogVariable, DialogTemplateVariable, DialogAlert
+from .models import DialogSession, DialogVariable, DialogTemplateVariable, DialogAlert, LaunchKeyword
 
 @admin.register(DialogSession)
 class DialogSessionAdmin(admin.ModelAdmin):
@@ -66,3 +66,9 @@ class DialogAlertAdmin(admin.ModelAdmin):
     list_display = ('current_sender', 'added', 'last_updated', 'dialog', 'message')
     search_fields = ('message', 'current_sender', 'metadata',)
     list_filter = ('added', 'last_updated',)
+
+@admin.register(LaunchKeyword)
+class LaunchKeywordAdmin(admin.ModelAdmin):
+    list_display = ('keyword', 'dialog_script', 'case_sensitive')
+    search_fields = ('keyword', 'dialog_script',)
+    list_filter = ('case_sensitive',)

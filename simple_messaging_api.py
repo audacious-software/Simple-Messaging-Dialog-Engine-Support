@@ -1,14 +1,17 @@
 # pylint: disable=no-member, line-too-long
 
 import json
+import logging
 import traceback
 
+from django.core.management import call_command
 from django.db.models import Q
 from django.utils import timezone
 
 from django_dialog_engine.models import Dialog, DialogScript
+from simple_messaging.models import OutgoingMessage
 
-from .models import DialogSession, DialogTemplateVariable
+from .models import DialogSession, DialogTemplateVariable, LaunchKeyword
 
 def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     message_content = outgoing_message.current_message()
@@ -149,10 +152,12 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
     return None
 
-def process_incoming_message(incoming_message):
+def process_incoming_message(incoming_message): # pylint: disable=too-many-locals, too-many-branches
     sender = incoming_message.current_sender()
 
     transmission_metadata = {}
+
+    logger = logging.getLogger()
 
     try:
         transmission_metadata = json.loads(incoming_message.transmission_metadata)
@@ -178,21 +183,61 @@ def process_incoming_message(incoming_message):
     if message_channel is None:
         query = query | Q(transmission_channel='simple_messaging_ui_default')
 
+    processed = False
+
     for session in DialogSession.objects.filter(finished=None).filter(query):
         if session.current_destination() == sender:
-            processed = False
+            if processed is False:
+                if message_channel is not None: # Found channel for session
+                    extras = {
+                        'message_channel': message_channel
+                    }
 
-            if message_channel is not None: # Found channel for session
-                extras = {
-                    'message_channel': message_channel
-                }
-
-                session.process_response(incoming_message, transmission_extras=extras)
+                    session.process_response(incoming_message, transmission_extras=extras)
+                else:
+                    session.process_response(incoming_message)
 
                 processed = True
 
-            if processed is False:
-                session.process_response(incoming_message)
+    logger.error('simple_messaging_dialog_support.process_incoming_message: processed = %s', processed)
+
+    if processed is False:
+        message = incoming_message.message.strip()
+
+        match = None
+
+        for keyword in LaunchKeyword.objects.exclude(keyword='*'):
+            if keyword.case_sensitive:
+                if keyword.keyword == message:
+                    match = keyword.dialog_script
+            else:
+                if keyword.keyword.lower() == message.lower():
+                    match = keyword.dialog_script
+
+        logger.error('simple_messaging_dialog_support.process_incoming_message: match[1] = %s', match)
+
+        if match is None:
+            keyword = LaunchKeyword.objects.filter(keyword='*').first()
+
+            if keyword is not None:
+                match = keyword.dialog_script
+
+        logger.error('simple_messaging_dialog_support.process_incoming_message: match[2] = %s', match)
+
+        if match is not None:
+            transmission_metadata = {}
+
+            if message_channel is not None:
+                transmission_metadata['message_channel'] = message_channel
+
+            dialog_message = 'dialog:%s' % match.identifier
+
+            logger.error('simple_messaging_dialog_support.process_incoming_message: dialog_message = %s -- %s', dialog_message, sender)
+
+            outgoing = OutgoingMessage.objects.create(destination=sender, send_date=timezone.now(), message=dialog_message, transmission_metadata=json.dumps(transmission_metadata, indent=2))
+            outgoing.encrypt_destination()
+
+            call_command('simple_messaging_send_pending_messages', _qs_context=False)
 
 def simple_messaging_record_response(post_request): # pylint: disable=invalid-name, unused-argument
     return True

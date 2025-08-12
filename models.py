@@ -185,6 +185,8 @@ class DialogSession(models.Model):
 
             extras.update(extras_updates)
 
+            logger.debug('self.dialog.process: %s -- %s', message_str, extras)
+
             actions = self.dialog.process(message_str, extras=extras, logger=logger)
 
             logger.debug('Updating destination variables...')
@@ -732,3 +734,8 @@ class DialogAlert(models.Model):
         self.metadata = metadata
 
         self.save()
+
+class LaunchKeyword(models.Model):
+    keyword = models.CharField(max_length=256)
+    dialog_script = models.ForeignKey(DialogScript, related_name='launch_keywords', null=True, on_delete=models.SET_NULL)
+    case_sensitive = models.BooleanField(default=False)
