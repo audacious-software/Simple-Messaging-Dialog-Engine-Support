@@ -86,7 +86,7 @@ def update_dashboard_signal_value(signal_name): # pylint: disable=too-many-branc
                     closed_max_duration = duration
                     closed_max_session = session
 
-            if len(closed_durations) > 0:
+            if len(closed_durations) >= 2:
                 value['closed_session_mean_duration'] = statistics.mean(closed_durations)
                 value['closed_session_stdev_duration'] = statistics.stdev(closed_durations)
                 value['closed_session_max_duration'] = closed_max_duration
