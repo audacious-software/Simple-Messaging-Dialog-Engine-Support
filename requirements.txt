@@ -13,7 +13,7 @@ jsonpath-ng==1.7.0
 lockfile==0.12.2
 lxml==5.4.0; python_version > '3.0' and python_version <= '3.7'
 lxml==6.0.2; python_version >= '3.8'
-phonenumbers==9.0.13
+phonenumbers==9.0.14
 psycopg2-binary==2.9.8; python_version >= '3.0' and python_version < '3.7'
 psycopg2-binary==2.9.9; python_version == '3.7'
 psycopg2-binary==2.9.10; python_version >= '3.8'
