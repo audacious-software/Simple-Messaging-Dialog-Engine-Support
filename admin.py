@@ -1,8 +1,10 @@
 # pylint: disable=line-too-long
 
-from django.contrib import admin
-
 from django.conf import settings
+from django.contrib import admin
+from django.db.models import Q
+
+from django_dialog_engine.models import DialogScript
 
 from .models import DialogSession, DialogVariable, DialogTemplateVariable, DialogAlert, LaunchKeyword
 
@@ -69,6 +71,22 @@ class DialogAlertAdmin(admin.ModelAdmin):
 
 @admin.register(LaunchKeyword)
 class LaunchKeywordAdmin(admin.ModelAdmin):
-    list_display = ('keyword', 'dialog_script', 'case_sensitive')
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(LaunchKeywordAdmin, self).get_form(request, obj, **kwargs)
+
+        query = None
+
+        for script in DialogScript.objects.all():
+            if script.is_active():
+                if query is None:
+                    query = Q(pk=script.pk)
+                else:
+                    query = query | Q(pk=script.pk)
+
+        form.base_fields['dialog_script'].queryset = DialogScript.objects.filter(query)
+
+        return form
+
+    list_display = ('keyword', 'dialog_script', 'case_sensitive', 'priority',)
     search_fields = ('keyword', 'dialog_script',)
     list_filter = ('case_sensitive',)
