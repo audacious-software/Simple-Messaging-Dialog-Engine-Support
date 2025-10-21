@@ -81,7 +81,7 @@ class LaunchKeywordAdmin(admin.ModelAdmin):
                 if query is None:
                     query = Q(pk=script.pk)
                 else:
-                    query = query | Q(pk=script.pk)
+                    query = query | Q(pk=script.pk) # pylint: disable=unsupported-binary-operation
 
         form.base_fields['dialog_script'].queryset = DialogScript.objects.filter(query)
 
