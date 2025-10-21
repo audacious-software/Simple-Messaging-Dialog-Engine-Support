@@ -71,8 +71,8 @@ class DialogAlertAdmin(admin.ModelAdmin):
 
 @admin.register(LaunchKeyword)
 class LaunchKeywordAdmin(admin.ModelAdmin):
-    def get_form(self, request, obj=None, **kwargs):
-        form = super(LaunchKeywordAdmin, self).get_form(request, obj, **kwargs)
+    def get_form(self, request, obj=None, **kwargs): # pylint: disable=arguments-differ
+        form = super(LaunchKeywordAdmin, self).get_form(request, obj, **kwargs) # pylint: disable=super-with-arguments
 
         query = None
 
