@@ -119,6 +119,7 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
 
                         if default_channel is not None:
                             new_session.latest_variables['message_channel'] = default_channel.identifier
+                            new_session.transmission_channel = default_channel.identifier
                             new_session.save()
                     except ImportError:
                         pass

@@ -748,3 +748,7 @@ class LaunchKeyword(models.Model):
     keyword = models.CharField(max_length=256)
     dialog_script = models.ForeignKey(DialogScript, related_name='launch_keywords', null=True, on_delete=models.SET_NULL)
     case_sensitive = models.BooleanField(default=False)
+
+    priority = models.IntegerField(default=0)
+
+    launch_condition = models.TextField(null=True, blank=True)
