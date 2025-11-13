@@ -10,6 +10,7 @@ import hashlib
 import errno
 import importlib
 import logging
+import mimetypes
 import json
 import os
 import tempfile
@@ -242,15 +243,23 @@ class DialogSession(models.Model):
                             if media_url is not None:
                                 response = requests.get(media_url, timeout=300)
 
-                                parsed = urllib.parse.urlparse(media_url)
+                                if response.status_code == 200:
+                                    content_type = response.headers['content-type']
 
-                                filename = parsed.path.split('/')[-1]
+                                    parsed = urllib.parse.urlparse(media_url)
 
-                                media_obj = OutgoingMessageMedia.objects.create(message=message, content_type=response.headers['content-type'])
+                                    filename = parsed.path.split('/')[-1]
 
-                                media_obj.content_file.save(filename, ContentFile(response.content))
+                                    file_extension = mimetypes.guess_extension(content_type)
 
-                                media_obj.save()
+                                    if filename.endswith(file_extension) is False:
+                                        filename = '%s.%s' % (filename, file_extension)
+
+                                    media_obj = OutgoingMessageMedia.objects.create(message=message, content_type=content_type)
+
+                                    media_obj.content_file.save(filename, ContentFile(response.content))
+
+                                    media_obj.save()
 
                             nudge_after = True
                         elif action['type'] == 'pause':
