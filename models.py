@@ -179,13 +179,12 @@ class DialogSession(models.Model):
 
             extras_updates = {}
 
-            for key, value in extras.items():
-                if isinstance(value, DialogVariableWrapper):
-                    extras_updates[key] = value.fetch_value()
+            # We NEED the dialog variable wrappers past this point.
+            # for key, value in extras.items():
+            #     if isinstance(value, DialogVariableWrapper):
+            #         extras_updates[key] = value.fetch_value()
 
             extras.update(extras_updates)
-
-            logger.debug('self.dialog.process: %s -- %s', message_str, extras)
 
             actions = self.dialog.process(message_str, extras=extras, logger=logger)
 
