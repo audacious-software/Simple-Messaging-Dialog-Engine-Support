@@ -264,7 +264,7 @@ class DialogSession(models.Model):
                             nudge_after = True
                         elif action['type'] == 'pause':
                             # Do nothing - pause will conclude in a subsequent call
-                            pass
+                            nudge_after = False
                         elif action['type'] == 'store-value':
                             to_store = action['value']
 
