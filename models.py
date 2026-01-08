@@ -163,6 +163,9 @@ class DialogSession(models.Model):
                     except: # pylint: disable=bare-except
                         logger.error(traceback.format_exc())
 
+                if isinstance(last_message, DialogVariableWrapper):
+                    last_message = last_message.storage()
+
                 variable_value = 'json:%s' % json.dumps(last_message)
 
                 variable = DialogVariable.objects.create(sender=self.current_destination(), dialog_key=self.dialog.key, key='last_message', value=variable_value, date_set=timezone.now())
