@@ -1,4 +1,4 @@
-# pylint: disable=no-member, line-too-long
+# pylint: disable=no-member, line-too-long, fixme
 
 import json
 
@@ -168,6 +168,8 @@ def launch_dialog_script(identifier, destination, dialog_options):
 
     transmission_metadata = {}
 
+    # TODO: Verify message channel picked up
+
     try:
         from simple_messaging_switchboard import Channel # pylint: disable=import-outside-toplevel
 
@@ -181,6 +183,8 @@ def launch_dialog_script(identifier, destination, dialog_options):
             transmission_metadata['message_channel'] = channel_name
     except ImportError:
         pass
+
+    # TODO: Normalize destination format IF a phone number.
 
     transmission_str = json.dumps(transmission_metadata, indent=2)
 
