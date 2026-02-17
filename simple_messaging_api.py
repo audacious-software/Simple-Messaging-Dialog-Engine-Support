@@ -1,9 +1,11 @@
 # pylint: disable=no-member, line-too-long
 
+import importlib
 import json
 import logging
 import traceback
 
+from django.conf import settings
 from django.core.management import call_command
 from django.db.models import Q
 from django.utils import timezone
@@ -124,6 +126,11 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
                     except ImportError:
                         pass
 
+                launch_keyword = transmission_metadata.get('simple_messaging_launch_keyword', None)
+
+                if launch_keyword is not None:
+                    new_session.add_variable('simple_messaging_launch_keyword', launch_keyword)
+
                 new_session.encrypt_destination()
 
                 metadata = {
@@ -152,6 +159,22 @@ def process_outgoing_message(outgoing_message, metadata=None): # pylint: disable
             return metadata
 
     return None
+
+def launch_keyword_enabled(sender, keyword):
+    is_enabled = True
+
+    for app in settings.INSTALLED_APPS:
+        try:
+            dialog_module = importlib.import_module('.dialog_api', package=app)
+
+            if dialog_module.launch_keyword_enabled(sender, keyword) is False:
+                is_enabled = False
+        except ImportError:
+            pass # traceback.print_exc()
+        except AttributeError:
+            pass # traceback.print_exc()
+
+    return is_enabled
 
 def process_incoming_message(incoming_message): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     sender = incoming_message.current_sender()
@@ -200,8 +223,6 @@ def process_incoming_message(incoming_message): # pylint: disable=too-many-local
 
                 processed = True
 
-    logger.error('simple_messaging_dialog_support.process_incoming_message: processed = %s', processed)
-
     if processed is False:
         message = incoming_message.message.strip()
 
@@ -210,26 +231,27 @@ def process_incoming_message(incoming_message): # pylint: disable=too-many-local
         for keyword in LaunchKeyword.objects.exclude(keyword='*'):
             if keyword.case_sensitive:
                 if keyword.keyword == message:
-                    match = keyword.dialog_script
+                    if launch_keyword_enabled(sender, keyword):
+                        match = keyword.dialog_script
             else:
                 if keyword.keyword.lower() == message.lower():
-                    match = keyword.dialog_script
-
-        logger.error('simple_messaging_dialog_support.process_incoming_message: match[1] = %s', match)
+                    if launch_keyword_enabled(sender, keyword):
+                        match = keyword.dialog_script
 
         if match is None:
             keyword = LaunchKeyword.objects.filter(keyword='*').first()
 
             if keyword is not None:
-                match = keyword.dialog_script
-
-        logger.error('simple_messaging_dialog_support.process_incoming_message: match[2] = %s', match)
+                if launch_keyword_enabled(sender, keyword):
+                    match = keyword.dialog_script
 
         if match is not None:
             transmission_metadata = {}
 
             if message_channel is not None:
                 transmission_metadata['message_channel'] = message_channel
+
+            transmission_metadata['simple_messaging_launch_keyword'] = message
 
             dialog_message = 'dialog:%s' % match.identifier
 
