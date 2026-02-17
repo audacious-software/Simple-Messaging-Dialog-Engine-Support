@@ -62,7 +62,7 @@ class Command(BaseCommand):
 
                     exception = exc
             else:
-                logging.info('Skipping nudge for session:%s.' % session.pk)
+                logging.info('Skipping nudge for session: %s.', session.pk)
 
         logging.info('Open sessions nudged.')
 
