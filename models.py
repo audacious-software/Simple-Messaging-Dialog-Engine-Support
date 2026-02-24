@@ -61,7 +61,12 @@ def advisory_lock(lock_name, timeout=None):
 
     host_prefix = slugify(settings.ALLOWED_HOSTS[0])
 
-    file_path = '%s/%s_%s.lock' % (tempfile.gettempdir(), host_prefix, lock_name)
+    tmp_dir = tempfile.gettempdir()
+
+    if hasattr(settings, 'QUICKSILVER_LOCK_DIR'):
+        tmp_dir = settings.QUICKSILVER_LOCK_DIR
+
+    file_path = '%s/%s_%s.lock' % (tmp_dir, host_prefix, lock_name)
 
     while os.path.exists(file_path):
         if start_time is not None:
