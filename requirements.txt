@@ -13,7 +13,7 @@ django-pglocks==1.0.4
 jsonpath-ng==1.8.0
 lockfile==0.12.2
 lxml==5.4.0; python_version > '3.0' and python_version <= '3.7'
-lxml==6.0.4; python_version >= '3.8'
+lxml==6.1.0; python_version >= '3.8'
 phonenumbers==9.0.28
 psycopg2-binary==2.8.6; python_version < '3.0'
 psycopg2-binary==2.9.8; python_version >= '3.0' and python_version < '3.7'
