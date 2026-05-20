@@ -313,8 +313,21 @@ class DialogSession(models.Model):
                         elif action['type'] == 'alert' or action['type'] == 'raise-alert':
                             now = timezone.now()
 
-                            alert = DialogAlert.objects.create(sender=self.current_destination(), dialog=self.dialog, message=action['message'], added=now, last_updated=now)
+                            sender = self.current_destination()
+
+                            alert = DialogAlert.objects.create(sender=sender, dialog=self.dialog, message=action['message'], added=now, last_updated=now)
                             alert.encrypt_sender()
+
+                            for message in IncomingMessage.objects.all().order_by('-receive_date'):
+                                if message.current_sender() == sender:
+
+                                    if alert.metadata is None:
+                                        alert.metadata = {}
+
+                                    alert.metadata['last_incoming_message_pk'] = '%s' % message.pk
+                                    alert.save()
+
+                                    break
 
                             for app in settings.INSTALLED_APPS:
                                 try:

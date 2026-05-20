@@ -226,6 +226,18 @@ def process_incoming_message(incoming_message): # pylint: disable=too-many-local
     if processed is False:
         message = incoming_message.message.strip()
 
+        for app in settings.INSTALLED_APPS:
+            try:
+                response_module = importlib.import_module('.simple_messaging_api', package=app)
+
+                if response_module.disable_keywords_for_message(incoming_message):
+                    return
+            except ImportError:
+                pass
+            except AttributeError:
+                pass
+
+
         match = None
 
         for keyword in LaunchKeyword.objects.exclude(keyword='*'):
