@@ -1,3 +1,5 @@
+/* global $, define */
+
 define(['material', 'cards/node', 'jquery'], function (mdc, Node) {
   class StartNewSessionNode extends Node {
     editBody () {
