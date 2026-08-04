@@ -237,25 +237,29 @@ def process_incoming_message(incoming_message): # pylint: disable=too-many-local
             except AttributeError:
                 pass
 
-
         match = None
 
-        for keyword in LaunchKeyword.objects.exclude(keyword='*'):
+        for keyword in LaunchKeyword.objects.exclude(keyword='*').order_by('-priority'):
             if keyword.case_sensitive:
                 if keyword.keyword == message:
                     if launch_keyword_enabled(sender, keyword):
                         match = keyword.dialog_script
+
+                        break
             else:
                 if keyword.keyword.lower() == message.lower():
                     if launch_keyword_enabled(sender, keyword):
                         match = keyword.dialog_script
 
-        if match is None:
-            keyword = LaunchKeyword.objects.filter(keyword='*').first()
+                        break
 
-            if keyword is not None:
-                if launch_keyword_enabled(sender, keyword):
-                    match = keyword.dialog_script
+        if match is None:
+            for keyword in LaunchKeyword.objects.filter(keyword='*').order_by('-priority'):
+                if keyword is not None:
+                    if launch_keyword_enabled(sender, keyword):
+                        match = keyword.dialog_script
+
+                        break
 
         if match is not None:
             transmission_metadata = {}

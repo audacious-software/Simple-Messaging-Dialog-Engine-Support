@@ -767,10 +767,10 @@ class DialogAlert(models.Model):
         self.save()
 
 class LaunchKeyword(models.Model):
-    keyword = models.CharField(max_length=256)
+    keyword = models.CharField(max_length=256, help_text='Uses literal string matching (not regexp). Use "*" as a catch-all.')
     dialog_script = models.ForeignKey(DialogScript, related_name='launch_keywords', null=True, on_delete=models.SET_NULL)
     case_sensitive = models.BooleanField(default=False)
 
-    priority = models.IntegerField(default=0)
+    priority = models.IntegerField(default=0, help_text='Higher priority keywords are evaluated first.')
 
-    launch_condition = models.TextField(null=True, blank=True)
+    launch_condition = models.TextField(null=True, blank=True, help_text='Evaluated by .dialog_api.launch_keyword_enabled functions.')
