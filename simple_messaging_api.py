@@ -169,10 +169,36 @@ def launch_keyword_enabled(sender, keyword):
 
             if dialog_module.launch_keyword_enabled(sender, keyword) is False:
                 is_enabled = False
+
+                break
+
         except ImportError:
             pass # traceback.print_exc()
         except AttributeError:
             pass # traceback.print_exc()
+
+    if is_enabled:
+        try:
+            keyword_context = json.loads(keyword.launch_condition)
+
+            for app in settings.INSTALLED_APPS:
+                try:
+                    dialog_module = importlib.import_module('.dialog_api', package=app)
+
+                    passed = dialog_module.evaluate_launch_keyword_context(sender, keyword_context)
+
+                    if passed is False:
+                        is_enabled = False
+
+                        break
+
+                except ImportError:
+                    pass # traceback.print_exc()
+                except AttributeError:
+                    pass # traceback.print_exc()
+
+        except json.JSONDecodeError:
+            pass
 
     return is_enabled
 
