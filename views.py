@@ -1,8 +1,5 @@
 # pylint: disable=no-member, line-too-long
 
-import importlib
-
-from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.urls import reverse

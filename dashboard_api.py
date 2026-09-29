@@ -6,6 +6,7 @@ import statistics
 import pytz
 
 from django.conf import settings
+from django.urls import reverse
 from django.utils import timezone
 
 from .models import DialogSession, DialogAlert
