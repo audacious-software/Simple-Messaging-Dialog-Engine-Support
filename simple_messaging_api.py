@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from django_dialog_engine.models import Dialog, DialogScript
 from simple_messaging.models import OutgoingMessage
+from simple_messaging.utils import extract_reactions
 
 from .models import DialogSession, DialogTemplateVariable, LaunchKeyword
 
@@ -176,6 +177,23 @@ def launch_keyword_enabled(sender, keyword):
 
     return is_enabled
 
+def preprocess_message_off(incoming_message):
+    content = incoming_message.current_message()
+
+    reactions = extract_reactions(content)
+
+    if len(reactions) > 0:
+        outgoings = OutgoingMessage.objects.messages_to_destination(incoming_message.current_sender(), as_of=incoming_message.receive_date, include_unsent=False)
+        outgoings.reverse()
+
+        for outgoing in outgoings:
+            if outgoing.message in content:
+                outgoing.add_reactions(reactions, incoming_message.receive_date, 'incoming_message:%s' % incoming_message.pk)
+
+                return True
+
+    return False
+
 def process_incoming_message(incoming_message): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     sender = incoming_message.current_sender()
 
@@ -209,19 +227,31 @@ def process_incoming_message(incoming_message): # pylint: disable=too-many-local
 
     processed = False
 
-    for session in DialogSession.objects.filter(finished=None).filter(query):
-        if session.current_destination() == sender:
-            if processed is False:
-                if message_channel is not None: # Found channel for session
-                    extras = {
-                        'message_channel': message_channel
-                    }
+    for app in settings.INSTALLED_APPS:
+        try:
+            response_module = importlib.import_module('.simple_messaging_api', package=app)
 
-                    session.process_response(incoming_message, transmission_extras=extras)
-                else:
-                    session.process_response(incoming_message)
-
+            if response_module.preprocess_message(incoming_message):
                 processed = True
+        except ImportError:
+            pass
+        except AttributeError:
+            pass
+
+    if processed is False:
+        for session in DialogSession.objects.filter(finished=None).filter(query):
+            if session.current_destination() == sender:
+                if processed is False:
+                    if message_channel is not None: # Found channel for session
+                        extras = {
+                            'message_channel': message_channel
+                        }
+
+                        session.process_response(incoming_message, transmission_extras=extras)
+                    else:
+                        session.process_response(incoming_message)
+
+                    processed = True
 
     if processed is False:
         message = incoming_message.message.strip()

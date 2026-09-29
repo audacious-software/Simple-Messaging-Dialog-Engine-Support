@@ -8,7 +8,7 @@ import pytz
 from django.conf import settings
 from django.utils import timezone
 
-from .models import DialogSession
+from .models import DialogSession, DialogAlert
 
 def dashboard_signals():
     return [{
@@ -25,6 +25,20 @@ def dashboard_signals():
             'widget_columns': 6,
             'active': True,
         },
+    }, {
+        'name': 'Daily Alerts',
+        'refresh_interval': 900,
+        'configuration': {
+            'widget_columns': 6,
+            'active': True,
+        },
+    }, {
+        'name': 'Recent Alerts',
+        'refresh_interval': 900,
+        'configuration': {
+            'widget_columns': 6,
+            'active': True,
+        },
     }]
 
 def dashboard_template(signal_name):
@@ -34,6 +48,10 @@ def dashboard_template(signal_name):
     if signal_name == 'Daily Dialog Sessions':
         return 'dashboard/simple_dashboard_widget_daily_sessions.html'
 
+    if signal_name == 'Daily Alerts':
+        return 'dashboard/simple_dashboard_widget_daily_alerts.html'
+
+#
     return None
 
 def update_dashboard_signal_value(signal_name): # pylint: disable=too-many-branches
@@ -142,7 +160,77 @@ def update_dashboard_signal_value(signal_name): # pylint: disable=too-many-branc
                 start_date += datetime.timedelta(days=1)
 
             return session_dates
+
+        if signal_name == 'Daily Alerts':
+            start_date = None
+
+            first_started = DialogAlert.objects.all().order_by('added').first()
+
+            if first_started is not None:
+                start_date = first_started.added
+
+            here_tz = pytz.timezone(settings.TIME_ZONE)
+
+            today = timezone.now().astimezone(here_tz).date()
+
+            if start_date is None:
+                start_date = timezone.now() - datetime.timedelta(days=7)
+
+            start_date = start_date.astimezone(here_tz).date()
+
+            signal = DashboardSignal.objects.filter(name='Daily Alerts').first()
+
+            if signal is not None:
+                window_size = signal.configuration.get('window_size', 60)
+
+                window_start = today - datetime.timedelta(days=window_size)
+
+                start_date = max(start_date, window_start)
+
+            alert_dates = []
+
+            while start_date <= today:
+                day_start = datetime.time(0, 0, 0, 0)
+
+                lookup_start = here_tz.localize(datetime.datetime.combine(start_date, day_start))
+
+                day_end = datetime.time(23, 59, 59, 999999)
+
+                lookup_end = here_tz.localize(datetime.datetime.combine(start_date, day_end))
+
+                day_log = {
+                    'date': start_date.isoformat(),
+                    'alerts': DialogAlert.objects.filter(added__gte=lookup_start, added__lte=lookup_end).count()
+                }
+
+                alert_dates.append(day_log)
+
+                start_date += datetime.timedelta(days=1)
+
+            return alert_dates
+
+        if signal_name == 'Recent Alerts':
+            today = timezone.now() - datetime.timedelta(days=1)
+            this_week = timezone.now() - datetime.timedelta(days=7)
+
+            alert_counts = {
+                'last_24h': DialogAlert.objects.filter(added__gte=today).count(),
+                'last_week': DialogAlert.objects.filter(added__gte=this_week).count(),
+                'all': DialogAlert.objects.all().count()
+            }
+
+            return alert_counts
+
     except ImportError:
         pass
 
     return None
+
+def dashboard_pages():
+    pages = [{
+        'title': 'DialogAlerts',
+        'icon': 'breaking_news',
+        'url': reverse('dashboard_dialog_alerts'),
+    }]
+
+    return pages
