@@ -16,7 +16,7 @@ from simple_data_export.utils import fetch_export_identifier, UnicodeWriter # py
 
 from .models import DialogSession, DialogVariable
 
-def export_data_sources(params=None, requester=None):
+def export_data_sources(params=None, requester=None): # pylint: disable=unused-argument
     if params is None:
         params = {}
 
