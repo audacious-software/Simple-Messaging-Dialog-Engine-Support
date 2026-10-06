@@ -16,7 +16,7 @@ from simple_data_export.utils import fetch_export_identifier, UnicodeWriter # py
 
 from .models import DialogSession, DialogVariable
 
-def export_data_sources(params=None):
+def export_data_sources(params=None, requester=None):
     if params is None:
         params = {}
 
@@ -30,7 +30,7 @@ def export_data_sources(params=None):
 
     return destinations
 
-def export_data_types():
+def export_data_types(available_sources):
     return [
         ('simple_messaging_dialog_support.dialog_variables', 'Session Dialog Variables',),
         ('simple_messaging_dialog_support.dialog_variable_timeline', 'Dialog Variable Timeline',),

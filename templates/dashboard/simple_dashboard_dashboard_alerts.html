@@ -32,7 +32,7 @@
 											{{ alert.message|linebreaksbr }}
 										</td>
 										<td class="mdc-data-table__cell" style="white-space: normal; padding-top: 0.5em; padding-bottom: 0.5em; margin-right: 0.5em;">
-											<a href="{% url 'admin_simple_messaging_dialog_support_dialog_alert_change' alert.pk %}" target="_blank"><i class="material-icons" style="font-size: 18px;">arrow_forward</i></a>
+											<a href="{% url 'admin:simple_messaging_dialog_support_dialogalert_change' alert.pk %}" target="_blank"><i class="material-icons" style="font-size: 18px;">arrow_forward</i></a>
 										</td>
 									</tr>
 								{% endfor %}

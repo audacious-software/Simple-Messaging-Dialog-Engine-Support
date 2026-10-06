@@ -229,8 +229,8 @@ def update_dashboard_signal_value(signal_name): # pylint: disable=too-many-branc
 
 def dashboard_pages():
     pages = [{
-        'title': 'DialogAlerts',
-        'icon': 'breaking_news',
+        'title': 'Dialog Alerts',
+        'icon': 'crisis_alert',
         'url': reverse('dashboard_dialog_alerts'),
     }]
 
