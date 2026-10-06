@@ -30,7 +30,7 @@ def export_data_sources(params=None, requester=None): # pylint: disable=unused-a
 
     return destinations
 
-def export_data_types(available_sources):
+def export_data_types(available_sources): # pylint: disable=unused-argument
     return [
         ('simple_messaging_dialog_support.dialog_variables', 'Session Dialog Variables',),
         ('simple_messaging_dialog_support.dialog_variable_timeline', 'Dialog Variable Timeline',),
