@@ -52,7 +52,9 @@ def dashboard_template(signal_name):
     if signal_name == 'Daily Alerts':
         return 'dashboard/simple_dashboard_widget_daily_alerts.html'
 
-#
+    if signal_name == 'Recent Alerts':
+        return 'dashboard/simple_dashboard_widget_recent_alerts.html'
+
     return None
 
 def update_dashboard_signal_value(signal_name): # pylint: disable=too-many-branches

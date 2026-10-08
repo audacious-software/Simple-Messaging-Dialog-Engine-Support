@@ -1,0 +1,39 @@
+{% with signal.latest_value as latest_value %}
+    {% with latest_value.fetch_value as log_items %}
+        <div class="mdc-layout-grid" style="margin-top: 16px;" id="simple_dashboard_signal_{{ signal.pk }}">
+            <div class="mdc-layout-grid_inner">
+                <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-4">
+                    <div style="text-align: center; font-size: 48px; line-height: 48px;">{{ log_items.last_24h }}</div>
+                    <div style="text-align: center; padding-bottom: 16px;">Last 24 Hours</div>
+                </div>
+                <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-4">
+                    <div style="text-align: center; font-size: 32px; line-height: 32px;">{{ log_items.last_week }}</div>
+                    <div style="text-align: center; padding-bottom: 16px;">Last 7 Days</div>
+                </div>
+                <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-4">
+                    <div style="text-align: center; font-size: 18px; line-height: 18px;">{{ log_items.all }}</div>
+                    <div style="text-align: center; padding-bottom: 8px;">Total</div>
+                </div>
+            </div>
+
+            <script>
+                (function () {
+                    const widgetElement = document.getElementById('simple_dashboard_signal_{{ signal.pk }}')
+
+                    if ({{ log_items.last_24h }} > 0) {
+                        widgetElement.parentElement.style.backgroundColor = '#B00020'
+                        widgetElement.parentElement.style.color = '#FFFFFF'
+                    } else if ({{ log_items.last_week }} > 0) {
+                        widgetElement.parentElement.style.backgroundColor = '#FFEB3B'
+                        widgetElement.parentElement.style.color = '#000000'
+                    }
+                })();
+            </script>
+        </div>
+		<div class="mdc-typography mdc-typography--caption" style="margin-top: 8px;">
+			Last updated: <strong>{{ latest_value.recorded }}</strong>
+		</div>
+    {% endwith %}
+{% endwith %}
+
+
